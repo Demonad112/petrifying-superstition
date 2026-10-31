@@ -1,0 +1,6 @@
+#!/bin/sh
+# Blocks commits that fail typecheck or sim tests. Installed by `npm install` (prepare script).
+echo "pre-commit: typecheck + sim tests"
+npm run --silent typecheck || { echo "pre-commit: typecheck FAILED"; exit 1; }
+npx vitest run --reporter=dot --silent >/dev/null 2>&1 || { echo "pre-commit: sim tests FAILED (run: npm test)"; exit 1; }
+echo "pre-commit: ok"
