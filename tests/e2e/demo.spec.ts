@@ -66,6 +66,7 @@ for (const { name, file } of DEMOS) {
 
     test('same hash with reduced FX', async ({ page }) => {
       await page.goto('./');
+      await expect(page.locator('canvas')).toHaveAttribute('data-scene', 'Menu'); // keys bind in Menu.create
       await page.keyboard.press('f');
       await expect(page.locator('canvas')).toHaveAttribute('data-fx', 'reduced');
       await page.goto(`./?demo=${name}`);

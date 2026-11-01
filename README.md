@@ -13,8 +13,20 @@ Game Off 2026 entry. Phaser 4 browser game, 960x540, keyboard and mouse. Built f
 | F | Full / reduced FX (shake and flash off, half the particles; any scene, remembered between sessions) |
 | Esc | End run |
 | F8 | Save the run as a replay file (Play and Game Over) |
+| D | Watch the demo (Menu, when a demo fixture exists) |
 
-Append `?seed=<n>` to the URL to pin the run seed.
+## URL parameters
+
+| Parameter | Effect |
+| --- | --- |
+| `?seed=<n>` | Pin the run seed |
+| `?demo=<name>` | Play `tests/replays/demo-<name>.json` on load (self-playing demo) |
+| `?speed=<n>` | Run the clock n times faster (0.25-8); view-only |
+| `?fps=<n>` | Force a fixed frame rate (5-240) |
+| `?shots=1` | Pause at each moment (resume with P), for screenshots |
+| `?perf=1` | Record frame times; summary on the end screen |
+
+None of these change the outcome of a run: the replay hash is the same with or without them.
 
 ## Replays
 
