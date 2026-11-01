@@ -12,7 +12,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `demo.spec` "plays to the end" and the pipeline audio test wait 100 s for GameOver and give up at tick ~1372/1654.
 - Cause: software WebGL on the runner (~360 ms/frame) combined with the fixed-step catch-up cap (`MAX_STEPS_PER_FRAME = 5`) gives about 14 ticks/s. `?speed=N` multiplies delta but doesn't lift the cap.
 - Fix: let `?speed=N` raise the cap to `5 x N` (view-only, so hashes don't change), or keep e2e demos short (the slice's `?auto=1` run is about 1 s of sim time per 60 ticks). Re-running the failed jobs passed (3 min 39 s against 9.3 min).
-- Status: workaround (re-run). Not seen in the slice's own e2e (a ~300-tick `?auto=1` run). Proposed branch `fix/e2e-demo-pacing`.
+- Status: fixed on `fix/e2e-demo-pacing`: `?speed=N` now raises the cap to `5 x N` (`catchUpCap` in `src/game/loop.ts`, view-only), and the demo "plays to the end" test runs at `speed=4`. Regression tests in `src/game/loop.test.ts`. Local demo e2e 7/7; the CI result is pending.
 - Seen: Deploy run for `cd5c3d5`, attempt 1.
 
 **K-02 · itch deploy silently skipped**
@@ -118,7 +118,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 **K-18 · headless slice runs at ~13 ticks/s (software WebGL)**
 - Symptom: `?auto=1` reached tick 63 in 5 s in headless Chromium.
 - Cause: same as K-01 (SwiftShader frames, 5-step catch-up cap).
-- Fix: e2e budgets are generous and poll; `?speed=N` does not lift the cap, so keep the slice's e2e tolerant (a ~300-500 tick run).
+- Fix: e2e budgets are generous and poll; `?speed=N` lifted the cap only after the K-01 fix, so keep the slice's e2e tolerant (a ~300-500 tick run).
 - Status: workaround. On the CI runner the rate was lower still, ~5 ticks/s (tick 158 after 30 s): the first `?auto=1` budget of 30 s failed both attempts on PR 7 (run 41284719496); the budget is now 100 s. `data-tick` at timeout is the number to read. The demo test `plays to the end` failed in the same run (K-01).
 - Seen: batch 4; CI on PR 7.
 
