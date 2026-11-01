@@ -12,7 +12,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `demo.spec` "plays to the end" and the pipeline audio test wait 100 s for GameOver and give up at tick ~1372/1654.
 - Cause: software WebGL on the runner (~360 ms/frame) combined with the fixed-step catch-up cap (`MAX_STEPS_PER_FRAME = 5`) gives about 14 ticks/s. `?speed=N` multiplies delta but doesn't lift the cap.
 - Fix: let `?speed=N` raise the cap to `5 x N` (view-only, so hashes don't change), or keep e2e demos short (the slice's `?auto=1` run is about 1 s of sim time per 60 ticks). Re-running the failed jobs passed (3 min 39 s against 9.3 min).
-- Status: workaround (re-run). Proposed branch `fix/e2e-demo-pacing`.
+- Status: workaround (re-run). Not seen in the slice's own e2e (a ~300-tick `?auto=1` run). Proposed branch `fix/e2e-demo-pacing`.
 - Seen: Deploy run for `cd5c3d5`, attempt 1.
 
 **K-02 · itch deploy silently skipped**
@@ -43,7 +43,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `47712a3` (PR 4) ends with `Co-authored-by: Addison <addynetgrp@gmail.com>`.
 - Cause: the commits were authored as `addynetgrp@gmail.com`, but the merge was done by an account whose primary email is different, so GitHub counted a second author.
 - Fix: add `addynetgrp@gmail.com` to the GitHub account (verified), or commit with the account's primary or noreply email. Remove the trailer in the squash dialog.
-- Status: open.
+- Status: open. Seen again on `c0eb50e` (PR 5 squash): `Co-authored-by: Addison <addynetgrp@gmail.com>`.
 
 **K-07 · `claude/*` session branch created automatically**
 - Symptom: a `claude/<slug>` branch exists locally and on origin.
@@ -119,8 +119,8 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `?auto=1` reached tick 63 in 5 s in headless Chromium.
 - Cause: same as K-01 (SwiftShader frames, 5-step catch-up cap).
 - Fix: e2e budgets are generous and poll; `?speed=N` does not lift the cap, so keep the slice's e2e tolerant (a ~300-500 tick run).
-- Status: workaround.
-- Seen: batch 4.
+- Status: workaround. On the CI runner the rate was lower still, ~5 ticks/s (tick 158 after 30 s): the first `?auto=1` budget of 30 s failed both attempts on PR 7 (run 41284719496); the budget is now 100 s. `data-tick` at timeout is the number to read. The demo test `plays to the end` failed in the same run (K-01).
+- Seen: batch 4; CI on PR 7.
 
 **K-19 · `pkill -f "vite preview"` kills the calling shell**
 - Symptom: a Bash tool call that ran `pkill -f "preview --port 4173"` exited 144 with no output.
@@ -129,5 +129,28 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Status: workaround.
 - Seen: batches 5 and 6.
 
+**K-20 · plan PR merged while the build branch was still in use**
+- Symptom: mid-session the instruction changed to "PR 5 (plan docs) is merged, rebuild from `origin/main`", but every batch (0-7) had already been pushed to `feat/demo-slice` and PR 5 had been squash-merged with all of them.
+- Cause: the plan commit and the build shared one branch and one PR, so merging the plan merged the build. `main` ended up with the same tree as the local branch (`git diff origin/main HEAD` empty).
+- Fix: nothing to rebase. `git checkout -B feat/demo-slice origin/main` left only batch 8 (docs); it goes on a new branch and a new PR. The old remote `feat/demo-slice` is not reused (non-fast-forward against the squashed main).
+- Status: workaround. Next time: land the plan docs on `main` first, or start the build on its own branch.
+- Seen: end of the slice session.
+
+**K-21 · overlapping e2e runs kill each other's preview servers**
+- Symptom: a local `npm run e2e` finished "20 passed, 6 failed" with `net::ERR_CONNECTION_REFUSED` on `localhost:4173`, mid-run.
+- Cause: a first run (backgrounded, no result line) was still alive when a second was started. Outside CI Playwright reuses an existing server (`reuseExistingServer`), and when the first run exited it stopped the servers it had spawned, under the second.
+- Fix: one e2e run at a time; before starting, check `pgrep -f "[p]laywright test"` and wait for it. Don't treat the failures as product failures; re-run clean.
+- Status: workaround.
+- Seen: slice session, final verification.
+
+**K-22 · session stop hook wants commits re-authored and force-pushed**
+- Symptom: a stop hook reports commits as "Unverified" because the committer email isn't the tool's noreply address, and asks to switch identity and `git commit --amend --reset-author` or rebase pushed commits.
+- Cause: the hook assumes the tool's identity and signing, which conflicts with K-05 (commits are authored as the owner) and with the no-force-push rule.
+- Fix: not applied; amending pushed commits needs a force-push. Options for the owner: enable commit signing or vigilant mode for the account, or exempt this repo from the hook.
+- Status: open (owner decision).
+- Seen: slice session, after pushing PR 6.
+
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
+- Slice polish left out on purpose: per-line glow on the stat panel (now one Text, the changed stat is bracketed and the whole line is tinted), a menu link to `slice.html`, sound design, a pause overlay, hand-play feel tuning (the `?auto=1` run never takes damage).
+- Slice sprites are rough: the gorgon reads small and dim at 2x; try 3x with a brighter `frost` rim and check on a phone.
