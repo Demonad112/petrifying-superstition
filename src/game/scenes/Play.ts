@@ -1,43 +1,62 @@
 import Phaser from 'phaser';
-import { createState, encodeReplay, step, type Command, type CommandLog, type SimState } from '../../sim';
+import { createState, encodeReplay, hashState, step, type Command, type CommandLog, type ReplayFile, type SimState } from '../../sim';
 import { sfxBlip } from '../audio';
-import { bindReplayExport, markPaused, markScene } from '../debug';
+import { bindReplayExport, debugParams, markData, markMoment, markPaused, markScene } from '../debug';
+import { ReplaySource } from '../demo';
 import { applyCameraFx, burst, hitStop, pulse, resetHitStop, shake, tickHitStop } from '../fx';
 import { bindFx, bindMute, CommandInput } from '../input';
-import { runFrame, type FrameIO, type TickMode } from '../loop';
+import { frameStats, runFrame, type FrameIO, type TickMode } from '../loop';
 import { PALETTE } from '../palette';
 import { getSettings } from '../settings';
 
 // 'realtime': the sim ticks at TICK_HZ and idle ticks log 'wait'. 'turn': the sim ticks only on input.
 const TICK_MODE: TickMode = 'realtime';
 
+export interface PlayData {
+  seed: number;
+  // Demo mode: the recorded log replaces live input; everything else (clock, step, FX, audio) is the live path.
+  demo?: { name: string; file: ReplayFile };
+}
+
 export class Play extends Phaser.Scene {
   private sim!: SimState;
   private log: CommandLog = [];
   private accMs = 0;
   private input2!: CommandInput;
+  private source: ReplaySource | null = null;
   private block!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Text;
   private muteHud!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Container;
   private paused = false;
+  private ended = false;
+  private deltas: number[] = [];
+  private readonly params = debugParams();
 
   constructor() {
     super('Play');
   }
 
-  create(data: { seed: number }): void {
+  create(data: PlayData): void {
     markScene(this);
+    const canvas = this.game.canvas;
     this.sim = createState(data.seed);
     this.log = [];
     this.accMs = 0;
     this.paused = false;
+    this.ended = false;
+    this.deltas = [];
+    this.source = data.demo ? new ReplaySource(data.demo.file) : null;
+    markData(canvas, 'mode', this.source ? 'demo' : 'live');
+    markData(canvas, 'hash', null);
+    markData(canvas, 'moment', null);
     const { width, height } = this.scale;
     this.block = this.add.image(width / 2, height / 2, 'block');
     this.hud = this.add.text(12, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: PALETTE.text });
-    this.add
-      .text(width / 2, height - 40, 'Space / Click: act   P: pause   M: mute   F: fx   Esc: end   F8: save replay', { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.accent })
-      .setOrigin(0.5);
+    const help = this.source
+      ? `DEMO ${data.demo?.name}   P: pause   M: mute   F: fx   Esc: end   F8: save replay`
+      : 'Space / Click: act   P: pause   M: mute   F: fx   Esc: end   F8: save replay';
+    this.add.text(width / 2, height - 40, help, { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.accent }).setOrigin(0.5);
     this.muteHud = this.add
       .text(width - 12, 8, 'MUTED', { fontFamily: 'monospace', fontSize: '18px', color: PALETTE.accent })
       .setOrigin(1, 0);
@@ -53,21 +72,39 @@ export class Play extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.game.events.off(Phaser.Core.Events.BLUR, autoPause);
       this.game.events.off(Phaser.Core.Events.HIDDEN, autoPause);
-      markPaused(this.game.canvas, null);
+      markPaused(canvas, null);
       resetHitStop(this, null);
     });
-    markPaused(this.game.canvas, false);
+    markPaused(canvas, false);
     resetHitStop(this, false);
-    const replay = () => encodeReplay(data.seed, this.log, this.sim);
-    bindReplayExport(this, replay);
-    this.input.keyboard?.once('keydown-ESC', () => this.scene.start('GameOver', { replay: replay() }));
+    bindReplayExport(this, () => this.replayFile());
+    this.input.keyboard?.once('keydown-ESC', () => this.end());
     applyCameraFx(this.cameras.main);
     this.render();
   }
 
   update(_time: number, delta: number): void {
-    this.accMs = runFrame(this.accMs, delta, this.frameIO);
+    if (this.params.perf && !this.paused) this.deltas.push(delta);
+    this.accMs = runFrame(this.accMs, delta * this.params.speed, this.frameIO);
+    if (this.source?.done && !this.ended) this.end();
     this.render();
+  }
+
+  private replayFile(): ReplayFile {
+    return encodeReplay(this.sim.seed, this.log, this.sim);
+  }
+
+  private end(): void {
+    if (this.ended) return;
+    this.ended = true;
+    const canvas = this.game.canvas;
+    markData(canvas, 'hash', hashState(this.sim));
+    if (this.params.perf) {
+      const stats = frameStats(this.deltas);
+      (window as unknown as { __perf?: unknown }).__perf = stats;
+      markData(canvas, 'perf', JSON.stringify(stats));
+    }
+    this.scene.start('GameOver', { replay: this.replayFile(), demo: this.source !== null });
   }
 
   // Wall-time scheduling lives in loop.ts; this only adapts the scene to it.
@@ -78,20 +115,24 @@ export class Play extends Phaser.Scene {
     return {
       mode: TICK_MODE,
       get paused() {
-        return scene.paused;
+        return scene.paused || scene.ended;
       },
       tickHitStop: (d) => tickHitStop(scene, d),
-      next: () => scene.input2.poll() ?? (TICK_MODE === 'realtime' ? { t: 'wait' } : null),
+      next: () => {
+        if (scene.source) return scene.source.next(); // live input is ignored in demo mode
+        return scene.input2.poll() ?? (TICK_MODE === 'realtime' ? { t: 'wait' } : null);
+      },
       clearInput: () => scene.input2.clear(),
       apply: (cmd) => scene.apply(cmd),
     };
   }
 
-  private setPaused(paused: boolean): void {
+  // `overlay: false` is the ?shots capture pause: same freeze, but the moment stays visible.
+  private setPaused(paused: boolean, overlay = true): void {
     if (paused === this.paused) return;
     this.paused = paused;
     if (paused) this.input2.clear();
-    this.overlay.setVisible(paused);
+    this.overlay.setVisible(paused && overlay);
     markPaused(this.game.canvas, paused);
   }
 
@@ -107,17 +148,25 @@ export class Play extends Phaser.Scene {
   private apply(cmd: Command): void {
     this.sim = step(this.sim, cmd);
     this.log.push(cmd);
-    if (cmd.t === 'act') {
-      sfxBlip();
-      pulse(this, this.block);
-      burst(this, this.block.x, this.block.y, { count: 8, color: PALETTE.secondary });
-      shake(this, 0.002, 80);
-      hitStop(this, 40);
-    }
+    if (cmd.t === 'act') this.moment('act');
+  }
+
+  // A moment is a sim outcome the view reacts to with FX and sound. ?shots=1 pauses on each one.
+  private moment(name: string): void {
+    sfxBlip();
+    pulse(this, this.block);
+    burst(this, this.block.x, this.block.y, { count: 8, color: PALETTE.secondary });
+    shake(this, 0.002, 80);
+    hitStop(this, 40);
+    markMoment(this.game.canvas, name);
+    if (this.params.shots) this.setPaused(true, false);
   }
 
   private render(): void {
+    const canvas = this.game.canvas;
     this.hud.setText(`TICK ${this.sim.tick}  ROLL ${this.sim.roll}`);
     this.muteHud.setVisible(getSettings().muted);
+    markData(canvas, 'tick', this.sim.tick);
+    markData(canvas, 'status', this.sim.status);
   }
 }

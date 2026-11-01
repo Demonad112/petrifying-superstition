@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkReplay, createState, encodeReplay, hashState, nextRandom, replay, step, type Command, type CommandLog, type SimState } from '../sim';
-import { runFrame, type FrameIO } from './loop';
+import { frameStats, runFrame, type FrameIO } from './loop';
 
 // Test-only PRNG for frame timings (not the sim RNG): keeps the property test reproducible.
 function timings(seed: number): () => number {
@@ -125,5 +125,13 @@ describe('frame driver (runFrame)', () => {
     };
     expect(runFrame(3, 10_000, io)).toBe(3);
     expect(applied).toBe(1);
+  });
+});
+
+describe('frameStats', () => {
+  it('summarises frame deltas', () => {
+    const d = Array.from({ length: 100 }, (_, i) => i + 1);
+    expect(frameStats(d)).toEqual({ frames: 100, p50: 51, p95: 96, max: 100 });
+    expect(frameStats([])).toEqual({ frames: 0, p50: 0, p95: 0, max: 0 });
   });
 });

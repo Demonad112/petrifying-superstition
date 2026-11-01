@@ -1,11 +1,15 @@
 import Phaser from 'phaser';
-import { markHitStop } from './debug';
+import { markData, markHitStop } from './debug';
 import { PALETTE } from './palette';
 import { getSettings } from './settings';
 
 // All visual FX live here. Phaser 4 filters: check the v3-to-v4 migration skill before changing.
 export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera): void {
-  if (camera.scene.game.renderer.type !== Phaser.WEBGL) return; // filters are WebGL-only
+  const canvas = camera.scene.game.canvas;
+  if (camera.scene.game.renderer.type !== Phaser.WEBGL) {
+    markData(canvas, 'camfx', 'off'); // filters are WebGL-only
+    return;
+  }
   Phaser.Actions.AddEffectBloom(camera, {
     threshold: 0.5,
     blurRadius: 2,
@@ -14,6 +18,7 @@ export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera): void {
     useInternal: true,
   });
   camera.filters.internal.addVignette(0.5, 0.5, 0.9, 0.35);
+  markData(canvas, 'camfx', 'on');
 }
 
 export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Components.Transform): void {

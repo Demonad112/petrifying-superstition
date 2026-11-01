@@ -45,3 +45,45 @@ export function markHitStop(canvas: HTMLCanvasElement, active: boolean | null): 
   if (active === null) delete canvas.dataset.hitstop;
   else canvas.dataset.hitstop = String(active);
 }
+
+// View-only URL parameters (DECISIONS #18). None of them enter SimState or the Command log.
+//   ?demo=<name>  play tests/replays/demo-<name>.json through the live clock and step path
+//   ?speed=<n>    wall-delta multiplier (0.25-8); the catch-up cap still applies
+//   ?fps=<n>      fixed setTimeout-driven frame rate (5-240), read once in main.ts
+//   ?shots=1      auto-pause at each moment (resume with P), for screenshots
+//   ?perf=1       record frame deltas; summary on window.__perf and canvas data-perf
+export interface DebugParams {
+  demo: string | null;
+  speed: number;
+  fps: number | null;
+  shots: boolean;
+  perf: boolean;
+}
+
+export function debugParams(search: string = location.search): DebugParams {
+  const p = new URLSearchParams(search);
+  const num = (k: string, min: number, max: number): number | null => {
+    const v = Number(p.get(k));
+    return p.has(k) && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : null;
+  };
+  const demo = p.get('demo');
+  return {
+    demo: demo && /^[a-z0-9-]+$/i.test(demo) ? demo : null,
+    speed: num('speed', 0.25, 8) ?? 1,
+    fps: num('fps', 5, 240),
+    shots: p.get('shots') === '1',
+    perf: p.get('perf') === '1',
+  };
+}
+
+// Sets or clears one canvas data attribute (`null` removes it).
+export function markData(canvas: HTMLCanvasElement, key: string, value: string | number | null): void {
+  if (value === null) delete canvas.dataset[key];
+  else canvas.dataset[key] = String(value);
+}
+
+// Each moment gets a fresh `<n>:<name>` value, so a MutationObserver sees repeats of the same moment.
+let momentCount = 0;
+export function markMoment(canvas: HTMLCanvasElement, name: string): void {
+  canvas.dataset.moment = `${++momentCount}:${name}`;
+}
