@@ -26,6 +26,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -40,6 +42,29 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # Checks the live build under its real subpath: the page loads, a missing asset is a real 404
+  # (no SPA fallback), and the bundled demo fixture is served as JSON.
+  verify-pages:
+    needs: pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the live Pages build
+        env:
+          PAGE_URL: ${{ needs.pages.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          base="${PAGE_URL%/}/"
+          probe() { curl -sS -o /dev/null -w '%{http_code} %{content_type}' "$1"; }
+          r=$(probe "$base"); echo "index        -> $r"; [[ "$r" == "200 text/html"* ]]
+          r=$(probe "${base}assets/does-not-exist.js"); echo "missing .js  -> $r"; [[ "$r" == 404* ]]
+          js=$(curl -sS "$base" | grep -o 'assets/index-[^"]*\.js' | head -1)
+          echo "entry        -> $js"; [[ -n "$js" ]]
+          r=$(probe "$base$js"); echo "entry js     -> $r"; [[ "$r" == "200 "*javascript* ]]
+          demo=$(curl -sS "$base$js" | grep -oE 'demo-[^"/]+-[A-Za-z0-9_-]{8}\.json' | head -1 || true)
+          if [[ -z "$demo" ]]; then echo "no bundled demo: skipped"; exit 0; fi
+          r=$(probe "${base}assets/$demo"); echo "demo json    -> $r"; [[ "$r" == "200 application/json"* ]]
 
   itch:
     needs: ci

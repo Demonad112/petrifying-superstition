@@ -1,0 +1,41 @@
+name: E2E stress
+
+# Manual flake hunt: every e2e test repeated N times across parallel workers.
+on:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Repeats per test
+        default: '24'
+      workers:
+        description: Parallel workers
+        default: '8'
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Stress
+        env:
+          REPEAT: ${{ inputs.repeat }}
+          WORKERS: ${{ inputs.workers }}
+        run: npx playwright test --repeat-each "$REPEAT" --workers "$WORKERS" --retries 0 --reporter=line
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stress-evidence
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
