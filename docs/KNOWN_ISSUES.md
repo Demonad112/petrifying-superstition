@@ -63,7 +63,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: Play's HUD kill total (`enemyCount`) and kill detection (`knockback`) are wrong for any run with overrides.
 - Cause: `Play.ts` imports `DEFAULT_TUNING` and doesn't take the tuning the run uses.
 - Fix: scenes hold the run's `Tuning` and pass it to `step` and every view lookup.
-- Status: open for Play. The slice avoids it by design.
+- Status: fixed for Play (branch `fix/play-run-tuning`): `Play` holds `tuning` and passes it to `createState`, `step`, the HUD kill total and `vanishedEnemies` (`src/game/kills.ts`). Regression test `vanishedEnemies with a knockback override does not count a hit survivor as a kill` failed first (`[0, 1]` vs `[0]`). Play still runs the defaults; this only removes the hidden coupling.
 
 **K-10 · kill detection is a heuristic diff**
 - Cause: the sim exposes no events, so `Play.reactKills` matches enemies across ticks by rarity and knockback distance.
