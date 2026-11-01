@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
-import { advanceClock, createState, encodeReplay, step, type Command, type CommandLog, type SimState } from '../../sim';
+import { createState, encodeReplay, step, type Command, type CommandLog, type SimState } from '../../sim';
 import { sfxBlip } from '../audio';
 import { bindReplayExport, markPaused, markScene } from '../debug';
 import { applyCameraFx, burst, hitStop, pulse, resetHitStop, shake, tickHitStop } from '../fx';
 import { bindFx, bindMute, CommandInput } from '../input';
+import { runFrame, type FrameIO, type TickMode } from '../loop';
 import { PALETTE } from '../palette';
 import { getSettings } from '../settings';
 
 // 'realtime': the sim ticks at TICK_HZ and idle ticks log 'wait'. 'turn': the sim ticks only on input.
-const TICK_MODE: 'realtime' | 'turn' = 'realtime';
+const TICK_MODE: TickMode = 'realtime';
 
 export class Play extends Phaser.Scene {
   private sim!: SimState;
@@ -65,29 +66,25 @@ export class Play extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (this.paused) {
-      // No ticks and no clock advance, so resuming never catches up. Input typed while paused is dropped.
-      this.input2.clear();
-      this.render();
-      return;
-    }
-    if (tickHitStop(this, delta)) {
-      // Hit-stop: no clock advance and no step for a few wall ms, like pause. Queued input is kept (it is only delayed).
-      this.render();
-      return;
-    }
-    if (TICK_MODE === 'turn') {
-      const cmd = this.input2.poll();
-      if (cmd) this.apply(cmd);
-    } else {
-      const { steps, accMs } = advanceClock(this.accMs, delta);
-      this.accMs = accMs;
-      for (let i = 0; i < steps; i++) {
-        this.apply(this.input2.poll() ?? { t: 'wait' });
-        if (tickHitStop(this, 0)) break; // a hit landed: drop this frame's remaining ticks instead of replaying them later
-      }
-    }
+    this.accMs = runFrame(this.accMs, delta, this.frameIO);
     this.render();
+  }
+
+  // Wall-time scheduling lives in loop.ts; this only adapts the scene to it.
+  private readonly frameIO: FrameIO = this.makeFrameIO();
+
+  private makeFrameIO(): FrameIO {
+    const scene = this;
+    return {
+      mode: TICK_MODE,
+      get paused() {
+        return scene.paused;
+      },
+      tickHitStop: (d) => tickHitStop(scene, d),
+      next: () => scene.input2.poll() ?? (TICK_MODE === 'realtime' ? { t: 'wait' } : null),
+      clearInput: () => scene.input2.clear(),
+      apply: (cmd) => scene.apply(cmd),
+    };
   }
 
   private setPaused(paused: boolean): void {

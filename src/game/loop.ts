@@ -1,0 +1,46 @@
+import { advanceClock, type Command } from '../sim';
+
+// Phaser-free frame driver. Play calls runFrame once per update; tests drive it with synthetic frame deltas.
+// Wall time (delta, pause, hit-stop) only decides how many ticks run this frame, never what they contain,
+// so any frame-rate, pause or hit-stop pattern produces the same command log and final state.
+
+export type TickMode = 'realtime' | 'turn';
+
+export interface FrameIO {
+  readonly mode: TickMode;
+  readonly paused: boolean;
+  // Spends wall time from the hit-stop budget. Returns true while frozen (DECISIONS #17).
+  tickHitStop(deltaMs: number): boolean;
+  // The command for the next tick. Live realtime returns queued input or 'wait'; turn mode returns input or null;
+  // a replay source returns the next logged command or null once the log is spent. null means "do not step".
+  next(): Command | null;
+  // Drops input queued while paused (DECISIONS #16).
+  clearInput(): void;
+  // Steps the sim and logs the command. May start a hit-stop.
+  apply(cmd: Command): void;
+}
+
+// Returns the new clock accumulator.
+export function runFrame(accMs: number, deltaMs: number, io: FrameIO): number {
+  if (io.paused) {
+    // No ticks and no clock advance, so resuming never catches up.
+    io.clearInput();
+    return accMs;
+  }
+  // Hit-stop: no clock advance and no step for a few wall ms. Queued input is kept (only delayed).
+  if (io.tickHitStop(deltaMs)) return accMs;
+  if (io.mode === 'turn') {
+    const cmd = io.next();
+    if (cmd) io.apply(cmd);
+    return accMs;
+  }
+  const { steps, accMs: acc } = advanceClock(accMs, deltaMs);
+  for (let i = 0; i < steps; i++) {
+    const cmd = io.next();
+    if (!cmd) break;
+    io.apply(cmd);
+    // A hit landed: drop this frame's remaining ticks instead of replaying them later.
+    if (io.tickHitStop(0)) break;
+  }
+  return acc;
+}
