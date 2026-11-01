@@ -21,14 +21,14 @@ export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera): void {
   markData(canvas, 'camfx', 'on');
 }
 
-// Rest scale per target, so a pulse that starts mid-pulse never compounds the scale.
-const restScale = new WeakMap<object, number>();
-
-export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Components.Transform): void {
-  const base = restScale.get(target) ?? target.scale;
-  restScale.set(target, base);
-  scene.tweens.killTweensOf(target);
-  scene.tweens.add({ targets: target, scale: { from: base * 1.4, to: base }, duration: 120, ease: 'Quad.easeOut' });
+// A short bone-coloured swipe in front of the attacker. View-only; motion is tiny, so it stays on in 'reduced' mode.
+export function slash(scene: Phaser.Scene, x: number, y: number, dir: number): void {
+  const horizontal = dir % 2 === 0;
+  const sign = dir === 0 || dir === 1 ? 1 : -1;
+  const arc = scene.add
+    .rectangle(x + (horizontal ? sign * 26 : 0), y + (horizontal ? 0 : sign * 26), horizontal ? 10 : 44, horizontal ? 44 : 10, PALETTE.bone, 0.8)
+    .setDepth(3);
+  scene.tweens.add({ targets: arc, alpha: 0, scaleX: horizontal ? 1.6 : 1, scaleY: horizontal ? 1 : 1.6, duration: 120, ease: 'Quad.easeOut', onComplete: () => arc.destroy() });
 }
 
 // ---- Game-feel kit (view-only). Nothing here touches SimState or the Command log (DECISIONS #17). ----

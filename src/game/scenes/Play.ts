@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
-import { createState, encodeReplay, hashState, step, type Command, type CommandLog, type ReplayFile, type SimState } from '../../sim';
-import { sfxBlip } from '../audio';
+import {
+  createState, encodeReplay, ENEMY_COUNT, EXIT_X, EXIT_Y, FP, hashState, KNOCKBACK, step, WORLD_H,
+  type Command, type CommandLog, type ReplayFile, type SimState,
+} from '../../sim';
+import { sfxClear, sfxHurt, sfxKill, sfxPickup, sfxSwing } from '../audio';
 import { bindReplayExport, debugParams, markData, markMoment, markPaused, markScene } from '../debug';
 import { ReplaySource } from '../demo';
-import { applyCameraFx, burst, hitStop, pulse, resetHitStop, shake, tickHitStop } from '../fx';
+import { applyCameraFx, burst, flash, hitStop, resetHitStop, shake, slash, tickHitStop } from '../fx';
 import { bindFx, bindMute, CommandInput } from '../input';
 import { frameStats, runFrame, type FrameIO, type TickMode } from '../loop';
 import { PALETTE } from '../palette';
@@ -24,7 +27,10 @@ export class Play extends Phaser.Scene {
   private accMs = 0;
   private input2!: CommandInput;
   private source: ReplaySource | null = null;
-  private block!: Phaser.GameObjects.Image;
+  private playerImg!: Phaser.GameObjects.Image;
+  private enemyImgs: Phaser.GameObjects.Image[] = [];
+  private dropImgs: Phaser.GameObjects.Image[] = [];
+  private exitImg!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Text;
   private muteHud!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Container;
@@ -51,17 +57,22 @@ export class Play extends Phaser.Scene {
     markData(canvas, 'hash', null);
     markData(canvas, 'moment', null);
     const { width, height } = this.scale;
-    this.block = this.add.image(width / 2, height / 2, 'block').setScale(3);
-    this.hud = this.add.text(12, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: PALETTE.text });
+    this.enemyImgs = [];
+    this.dropImgs = [];
+    this.buildArena();
+    this.exitImg = this.add.image(EXIT_X / FP, EXIT_Y / FP, 'exit').setScale(3).setDepth(1);
+    this.playerImg = this.add.image(this.sim.px / FP, this.sim.py / FP, 'player').setScale(2);
+    this.hud = this.add.text(12, 6, '', { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.text }).setDepth(8);
     const help = this.source
       ? `DEMO ${data.demo?.name}   P: pause   M: mute   F: fx   Esc: end   F8: save replay`
-      : 'Space / Click: act   P: pause   M: mute   F: fx   Esc: end   F8: save replay';
-    this.add.text(width / 2, height - 40, help, { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.accent }).setOrigin(0.5);
+      : 'WASD: move   Arrows / Space / Click: attack   P: pause   M: mute   F: fx   Esc: end';
+    this.add.text(width / 2, height - 15, help, { fontFamily: 'monospace', fontSize: '14px', color: PALETTE.accent }).setOrigin(0.5).setDepth(8);
     this.muteHud = this.add
-      .text(width - 12, 8, 'MUTED', { fontFamily: 'monospace', fontSize: '18px', color: PALETTE.accent })
-      .setOrigin(1, 0);
+      .text(width - 12, 6, 'MUTED', { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.accent })
+      .setOrigin(1, 0)
+      .setDepth(8);
     this.overlay = this.makePauseOverlay();
-    this.input2 = new CommandInput(this);
+    this.input2 = new CommandInput(this, () => ({ x: this.sim.px / FP, y: this.sim.py / FP, face: this.sim.face }));
     bindMute(this);
     bindFx(this);
     this.input.keyboard?.on('keydown-P', () => this.setPaused(!this.paused));
@@ -86,8 +97,15 @@ export class Play extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.params.perf && !this.paused) this.deltas.push(delta);
     this.accMs = runFrame(this.accMs, delta * this.params.speed, this.frameIO);
-    if (this.source?.done && !this.ended) this.end();
+    // End after a pause lifts, so a ?shots capture on the last moment is not skipped.
+    if (!this.paused && !this.ended && (this.source?.done || this.sim.status !== 'playing')) this.end();
     this.render();
+  }
+
+  private summary(): string {
+    const s = this.sim;
+    const result = s.status === 'cleared' ? `MAP CLEARED  tier ${s.tier - 1} -> ${s.tier}` : s.status === 'dead' ? 'YOU DIED' : 'RUN ENDED';
+    return `${result}\nkills ${s.kills.join('/')} (normal/magic/rare)   modifiers ${s.picked}`;
   }
 
   private replayFile(): ReplayFile {
@@ -104,7 +122,7 @@ export class Play extends Phaser.Scene {
       (window as unknown as { __perf?: unknown }).__perf = stats;
       markData(canvas, 'perf', JSON.stringify(stats));
     }
-    this.scene.start('GameOver', { replay: this.replayFile(), demo: this.source !== null });
+    this.scene.start('GameOver', { replay: this.replayFile(), demo: this.source !== null, summary: this.summary() });
   }
 
   // Wall-time scheduling lives in loop.ts; this only adapts the scene to it.
@@ -146,27 +164,126 @@ export class Play extends Phaser.Scene {
   }
 
   private apply(cmd: Command): void {
-    this.sim = step(this.sim, cmd);
+    const prev = this.sim;
+    this.sim = step(prev, cmd);
     this.log.push(cmd);
-    if (cmd.t === 'act') this.moment('act');
+    this.react(prev, this.sim);
   }
 
-  // A moment is a sim outcome the view reacts to with FX and sound. ?shots=1 pauses on each one.
+  // The view reacts to what changed between two sim states. Pure observation: no rules, no RNG.
+  private react(prev: SimState, next: SimState): void {
+    if (prev.cd === 0 && next.cd > 0) {
+      sfxSwing();
+      slash(this, next.px / FP, next.py / FP, next.face);
+    }
+    this.reactKills(prev, next);
+    if (next.drar.length > prev.drar.length) {
+      const top = Math.max(...next.drar.slice(prev.drar.length));
+      if (top >= 2) this.moment('drop-rare');
+    }
+    if (next.picked > prev.picked) {
+      sfxPickup();
+      burst(this, next.px / FP, next.py / FP, { count: 8, color: PALETTE.rare });
+      if (prev.picked === 0) this.moment('pickup');
+    }
+    if (next.hp < prev.hp) {
+      sfxHurt();
+      shake(this, 0.003, 100);
+      flash(this, PALETTE.blood1, 80);
+    }
+    if (next.exitOpen && !prev.exitOpen) this.moment('exit-open');
+    if (next.status === 'cleared' && prev.status === 'playing') {
+      sfxClear();
+      flash(this, PALETTE.frost, 120);
+      this.moment('cleared');
+    }
+  }
+
+  // Finds the enemies that vanished by walking both lists in order: a survivor keeps its rarity and has moved at most a knockback.
+  private reactKills(prev: SimState, next: SimState): void {
+    if (next.ex.length === prev.ex.length) return;
+    let j = 0;
+    for (let i = 0; i < prev.ex.length; i++) {
+      const rar = prev.erar[i] ?? 0;
+      const alive =
+        j < next.ex.length &&
+        next.erar[j] === rar &&
+        Math.abs((next.ex[j] ?? 0) - (prev.ex[i] ?? 0)) <= KNOCKBACK + FP &&
+        Math.abs((next.ey[j] ?? 0) - (prev.ey[i] ?? 0)) <= KNOCKBACK + FP;
+      if (alive) {
+        j++;
+        continue;
+      }
+      const x = (prev.ex[i] ?? 0) / FP;
+      const y = (prev.ey[i] ?? 0) / FP;
+      sfxKill();
+      if (rar === 0) {
+        burst(this, x, y, { count: 6, color: PALETTE.normal });
+        hitStop(this, 30);
+      } else if (rar === 1) {
+        burst(this, x, y, { count: 12, color: PALETTE.magic });
+        shake(this, 0.002, 80);
+        hitStop(this, 50);
+        this.moment('kill-magic');
+      } else {
+        burst(this, x, y, { count: 20, color: PALETTE.rare });
+        flash(this, PALETTE.rare, 100);
+        shake(this, 0.004, 120);
+        hitStop(this, 80);
+        this.moment('kill-rare');
+      }
+    }
+  }
+
+  // A moment is a sim outcome worth a screenshot. ?shots=1 pauses on each one.
   private moment(name: string): void {
-    sfxBlip();
-    pulse(this, this.block);
-    burst(this, this.block.x, this.block.y, { count: 8, color: PALETTE.torch1 });
-    shake(this, 0.002, 80);
-    hitStop(this, 40);
     markMoment(this.game.canvas, name);
     if (this.params.shots) this.setPaused(true, false);
   }
 
+  private buildArena(): void {
+    const { width, height } = this.scale;
+    const t = 30;
+    this.add.tileSprite(0, 0, width, height, 'floor').setOrigin(0).setTileScale(3).setDepth(0);
+    for (const [x, y, w, h] of [[0, 0, width, t], [0, height - t, width, t], [0, 0, t, height], [width - t, 0, t, height]] as const) {
+      this.add.tileSprite(x, y, w, h, 'wall').setOrigin(0).setTileScale(3).setDepth(0.5);
+    }
+    const torches: (readonly [number, number])[] = [[560, 15], [700, 15], [820, 15], [15, 150], [15, 390], [945, 150], [945, 390]];
+    for (const [x, y] of torches) this.add.image(x, y, 'torch').setScale(2).setDepth(0.6);
+  }
+
+  // Grows or shrinks a pool of images to `n` and returns them, so entities never leak or stack.
+  private pool(imgs: Phaser.GameObjects.Image[], n: number, scale: number): Phaser.GameObjects.Image[] {
+    while (imgs.length < n) imgs.push(this.add.image(0, 0, 'enemy0').setScale(scale));
+    imgs.forEach((img, i) => img.setVisible(i < n));
+    return imgs;
+  }
+
   private render(): void {
     const canvas = this.game.canvas;
-    this.hud.setText(`TICK ${this.sim.tick}  ROLL ${this.sim.roll}`);
+    const sim = this.sim;
+    const depth = (yFp: number) => 1 + yFp / FP / WORLD_H;
+    this.playerImg
+      .setPosition(sim.px / FP, sim.py / FP)
+      .setDepth(depth(sim.py))
+      .setFlipX(sim.face === 2)
+      .setAlpha(sim.inv > 0 && (sim.tick & 4) === 0 ? 0.35 : 1);
+    this.pool(this.enemyImgs, sim.ex.length, 2).forEach((img, i) => {
+      if (i < sim.ex.length) img.setTexture(`enemy${sim.erar[i] ?? 0}`).setPosition((sim.ex[i] ?? 0) / FP, (sim.ey[i] ?? 0) / FP).setDepth(depth(sim.ey[i] ?? 0));
+    });
+    this.pool(this.dropImgs, sim.dx.length, 2).forEach((img, i) => {
+      if (i < sim.dx.length) img.setTexture(`gem${sim.drar[i] ?? 0}`).setPosition((sim.dx[i] ?? 0) / FP, (sim.dy[i] ?? 0) / FP).setDepth(1);
+    });
+    this.exitImg.setAlpha(sim.exitOpen ? 1 : 0.25);
+    const mods = [sim.mDmg && `DMG+${sim.mDmg}`, sim.mHaste && `HASTE+${sim.mHaste}`, sim.mSwift && `SWIFT+${sim.mSwift}`].filter(Boolean).join(' ');
+    this.hud.setText(
+      `TIER ${sim.tier}  HP ${Math.max(0, sim.hp)}/${sim.maxHp}  KILLS ${sim.kills.reduce((a, b) => a + b, 0)}/${ENEMY_COUNT}  ${mods}`,
+    );
     this.muteHud.setVisible(getSettings().muted);
-    markData(canvas, 'tick', this.sim.tick);
-    markData(canvas, 'status', this.sim.status);
+    markData(canvas, 'tick', sim.tick);
+    markData(canvas, 'status', sim.status);
+    markData(canvas, 'tier', sim.tier);
+    markData(canvas, 'hp', sim.hp);
+    markData(canvas, 'kills', sim.kills.reduce((a, b) => a + b, 0));
   }
 }

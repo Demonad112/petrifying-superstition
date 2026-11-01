@@ -20,7 +20,7 @@ Game Off 2026 entry. Phaser 4 browser game, 960x540, keyboard and mouse. Built f
 | Parameter | Effect |
 | --- | --- |
 | `?seed=<n>` | Pin the run seed |
-| `?demo=<name>` | Play `tests/replays/demo-<name>.json` on load (self-playing demo) |
+| `?demo=<name>` | Play `tests/replays/demo-<name>.json` on load (self-playing demo; try `?demo=map-seed5`) |
 | `?speed=<n>` | Run the clock n times faster (0.25-8); view-only |
 | `?fps=<n>` | Force a fixed frame rate (5-240) |
 | `?shots=1` | Pause at each moment (resume with P), for screenshots |
@@ -54,4 +54,4 @@ License: MIT
 2. Set the repo-local git identity, then add the `BUTLER_API_KEY` secret and the `ITCH_USER`/`ITCH_GAME` variables. Set Pages source to GitHub Actions.
 3. Rename the project in `package.json`, `index.html` `<title>`, the Menu title and this README.
 4. Fill in `docs/GDD.md` and reset `docs/HANDOFF.md`.
-5. Replace the `act` command, `SimState` fields and the Play scene with the real game. Update `EXPECTED_HASH` deliberately and delete or re-record `tests/replays/baseline-seed42.json`.
+5. Replace the `move`/`attack` commands, `SimState` fields, `autopilot.ts` and the Play scene with the real game. Update `EXPECTED_HASH` deliberately and re-record the fixtures with `UPDATE_DEMO=1 npx vitest run autopilot`.
