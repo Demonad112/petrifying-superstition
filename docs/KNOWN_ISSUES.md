@@ -119,8 +119,8 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `?auto=1` reached tick 63 in 5 s in headless Chromium.
 - Cause: same as K-01 (SwiftShader frames, 5-step catch-up cap).
 - Fix: e2e budgets are generous and poll; `?speed=N` does not lift the cap, so keep the slice's e2e tolerant (a ~300-500 tick run).
-- Status: workaround.
-- Seen: batch 4.
+- Status: workaround. On the CI runner the rate was lower still, ~5 ticks/s (tick 158 after 30 s): the first `?auto=1` budget of 30 s failed both attempts on PR 7 (run 41284719496); the budget is now 100 s. `data-tick` at timeout is the number to read. The demo test `plays to the end` failed in the same run (K-01).
+- Seen: batch 4; CI on PR 7.
 
 **K-19 · `pkill -f "vite preview"` kills the calling shell**
 - Symptom: a Bash tool call that ran `pkill -f "preview --port 4173"` exited 144 with no output.
