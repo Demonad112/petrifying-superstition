@@ -1,5 +1,6 @@
 import { randomInt } from './rng';
-import { cos64, sin64 } from './trig';
+import { ANGLES, cos64, sin64 } from './trig';
+import { byRarity, DEFAULT_TUNING, type Tuning } from './tuning';
 
 export const WORLD_W = 960;
 export const WORLD_H = 540;
@@ -13,9 +14,8 @@ export const MIN_Y = 40 * FP;
 export const MAX_Y = (WORLD_H - 40) * FP;
 export const EXIT_X = (WORLD_W / 2) * FP;
 export const EXIT_Y = 50 * FP;
-
-export const ENEMY_COUNT = 12;
-export const ENEMY_HP = [3, 6, 14] as const; // by rarity: normal, magic, rare
+export const CENTER_X = (WORLD_W / 2) * FP;
+export const CENTER_Y = (WORLD_H / 2) * FP;
 
 // Flat, JSON-serializable. No classes, no references, no functions. Entity lists are parallel arrays.
 export interface SimState {
@@ -58,24 +58,27 @@ export function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
 }
 
-export function createState(seed: number): SimState {
+export function createState(seed: number, t: Tuning = DEFAULT_TUNING): SimState {
   let rng = seed >>> 0;
+  const w0 = byRarity(t, 'rarityWeight', 0);
+  const w1 = byRarity(t, 'rarityWeight', 1);
+  const wTotal = w0 + w1 + byRarity(t, 'rarityWeight', 2);
   const ex: number[] = [];
   const ey: number[] = [];
   const ehp: number[] = [];
   const erar: number[] = [];
-  for (let i = 0; i < ENEMY_COUNT; i++) {
+  for (let i = 0; i < t.enemyCount; i++) {
     let r: number;
     let a: number;
     let d: number;
-    [r, rng] = randomInt(rng, 100);
-    [a, rng] = randomInt(rng, 64);
-    [d, rng] = randomInt(rng, 5);
-    const rar = r < 70 ? 0 : r < 92 ? 1 : 2;
-    const radius = (150 + d * 20) * FP;
-    ex.push(clamp(480 * FP + ((cos64(a) * radius) >> 12), MIN_X, MAX_X));
-    ey.push(clamp(270 * FP + ((sin64(a) * radius) >> 12), MIN_Y, MAX_Y));
-    ehp.push(ENEMY_HP[rar] ?? 3);
+    [r, rng] = randomInt(rng, wTotal);
+    [a, rng] = randomInt(rng, ANGLES);
+    [d, rng] = randomInt(rng, t.spawnRadiusBands);
+    const rar = r < w0 ? 0 : r < w0 + w1 ? 1 : 2;
+    const radius = t.spawnRadiusMin + d * t.spawnRadiusStep;
+    ex.push(clamp(CENTER_X + ((cos64(a) * radius) >> 12), MIN_X, MAX_X));
+    ey.push(clamp(CENTER_Y + ((sin64(a) * radius) >> 12), MIN_Y, MAX_Y));
+    ehp.push(byRarity(t, 'enemyHp', rar));
     erar.push(rar);
   }
   return {
@@ -84,10 +87,10 @@ export function createState(seed: number): SimState {
     tick: 0,
     status: 'playing',
     tier: 1,
-    px: 90 * FP,
-    py: 270 * FP,
-    hp: 20,
-    maxHp: 20,
+    px: t.playerStartX,
+    py: t.playerStartY,
+    hp: t.playerHp,
+    maxHp: t.playerHp,
     cd: 0,
     inv: 0,
     face: 0,

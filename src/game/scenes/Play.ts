@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  createState, encodeReplay, ENEMY_COUNT, EXIT_X, EXIT_Y, FP, hashState, KNOCKBACK, step, WORLD_H,
+  createState, DEFAULT_TUNING, encodeReplay, EXIT_X, EXIT_Y, FP, hashState, step, WORLD_H,
   type Command, type CommandLog, type ReplayFile, type SimState,
 } from '../../sim';
 import { sfxClear, sfxHurt, sfxKill, sfxPickup, sfxSwing } from '../audio';
@@ -208,8 +208,8 @@ export class Play extends Phaser.Scene {
       const alive =
         j < next.ex.length &&
         next.erar[j] === rar &&
-        Math.abs((next.ex[j] ?? 0) - (prev.ex[i] ?? 0)) <= KNOCKBACK + FP &&
-        Math.abs((next.ey[j] ?? 0) - (prev.ey[i] ?? 0)) <= KNOCKBACK + FP;
+        Math.abs((next.ex[j] ?? 0) - (prev.ex[i] ?? 0)) <= DEFAULT_TUNING.knockback + FP &&
+        Math.abs((next.ey[j] ?? 0) - (prev.ey[i] ?? 0)) <= DEFAULT_TUNING.knockback + FP;
       if (alive) {
         j++;
         continue;
@@ -277,7 +277,7 @@ export class Play extends Phaser.Scene {
     this.exitImg.setAlpha(sim.exitOpen ? 1 : 0.25);
     const mods = [sim.mDmg && `DMG+${sim.mDmg}`, sim.mHaste && `HASTE+${sim.mHaste}`, sim.mSwift && `SWIFT+${sim.mSwift}`].filter(Boolean).join(' ');
     this.hud.setText(
-      `TIER ${sim.tier}  HP ${Math.max(0, sim.hp)}/${sim.maxHp}  KILLS ${sim.kills.reduce((a, b) => a + b, 0)}/${ENEMY_COUNT}  ${mods}`,
+      `TIER ${sim.tier}  HP ${Math.max(0, sim.hp)}/${sim.maxHp}  KILLS ${sim.kills.reduce((a, b) => a + b, 0)}/${DEFAULT_TUNING.enemyCount}  ${mods}`,
     );
     this.muteHud.setVisible(getSettings().muted);
     markData(canvas, 'tick', sim.tick);
