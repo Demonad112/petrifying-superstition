@@ -17,6 +17,7 @@ new Phaser.Game({
   width: WORLD_W,
   height: WORLD_H,
   backgroundColor: PALETTE.bg,
+  pixelArt: true, // nearest-neighbour scaling keeps code-defined sprites crisp
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   ...(fps ? { fps: { target: fps, forceSetTimeOut: true } } : {}),
   scene: [Boot, Preload, Menu, Play, GameOver],

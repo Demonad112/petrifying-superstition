@@ -51,7 +51,7 @@ export class Play extends Phaser.Scene {
     markData(canvas, 'hash', null);
     markData(canvas, 'moment', null);
     const { width, height } = this.scale;
-    this.block = this.add.image(width / 2, height / 2, 'block');
+    this.block = this.add.image(width / 2, height / 2, 'block').setScale(3);
     this.hud = this.add.text(12, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: PALETTE.text });
     const help = this.source
       ? `DEMO ${data.demo?.name}   P: pause   M: mute   F: fx   Esc: end   F8: save replay`
@@ -155,7 +155,7 @@ export class Play extends Phaser.Scene {
   private moment(name: string): void {
     sfxBlip();
     pulse(this, this.block);
-    burst(this, this.block.x, this.block.y, { count: 8, color: PALETTE.secondary });
+    burst(this, this.block.x, this.block.y, { count: 8, color: PALETTE.torch1 });
     shake(this, 0.002, 80);
     hitStop(this, 40);
     markMoment(this.game.canvas, name);

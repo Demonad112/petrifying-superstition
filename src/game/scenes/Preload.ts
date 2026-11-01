@@ -1,17 +1,14 @@
 import Phaser from 'phaser';
-import { PALETTE } from '../palette';
+import { bakeSprites } from '../sprites';
 
-// No binary assets: generate textures from primitives.
+// No binary assets: every texture is baked from code-defined pixel sprites.
 export class Preload extends Phaser.Scene {
   constructor() {
     super('Preload');
   }
 
   create(): void {
-    const g = this.make.graphics({}, false);
-    g.fillStyle(PALETTE.primary).fillRect(0, 0, 48, 48);
-    g.generateTexture('block', 48, 48);
-    g.destroy();
+    bakeSprites(this);
     this.scene.start('Menu');
   }
 }

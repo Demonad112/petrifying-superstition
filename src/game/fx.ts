@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { markData, markHitStop } from './debug';
-import { PALETTE } from './palette';
+import { PALETTE, type PaletteColor } from './palette';
 import { getSettings } from './settings';
 
 // All visual FX live here. Phaser 4 filters: check the v3-to-v4 migration skill before changing.
@@ -21,14 +21,19 @@ export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera): void {
   markData(canvas, 'camfx', 'on');
 }
 
+// Rest scale per target, so a pulse that starts mid-pulse never compounds the scale.
+const restScale = new WeakMap<object, number>();
+
 export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Components.Transform): void {
-  scene.tweens.add({ targets: target, scale: { from: 1.4, to: 1 }, duration: 120, ease: 'Quad.easeOut' });
+  const base = restScale.get(target) ?? target.scale;
+  restScale.set(target, base);
+  scene.tweens.killTweensOf(target);
+  scene.tweens.add({ targets: target, scale: { from: base * 1.4, to: base }, duration: 120, ease: 'Quad.easeOut' });
 }
 
 // ---- Game-feel kit (view-only). Nothing here touches SimState or the Command log (DECISIONS #17). ----
 // Budget rules: a trigger fires at most one shake, one flash, one burst and one hit-stop; shake <= 0.005,
 // flash <= 120 ms, hit-stop <= 80 ms, burst <= 24 particles. 'reduced' drops shake and flash and halves bursts.
-export type PaletteColor = typeof PALETTE.bg | typeof PALETTE.grid | typeof PALETTE.primary | typeof PALETTE.secondary;
 
 const isReduced = (): boolean => getSettings().fx === 'reduced';
 
@@ -71,7 +76,7 @@ function emitterFor(scene: Phaser.Scene): Phaser.GameObjects.Particles.ParticleE
 }
 
 export function burst(scene: Phaser.Scene, x: number, y: number, opts: BurstOpts = {}): void {
-  const { count = 10, color = PALETTE.primary, speed = 160, lifespan = 350 } = opts;
+  const { count = 10, color = PALETTE.torch1, speed = 160, lifespan = 350 } = opts;
   const n = isReduced() ? Math.max(1, Math.round(count / 2)) : count;
   emitterFor(scene)
     .setParticleTint(color)
