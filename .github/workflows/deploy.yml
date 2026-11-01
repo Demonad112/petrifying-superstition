@@ -58,6 +58,7 @@ jobs:
           base="${PAGE_URL%/}/"
           probe() { curl -sS -o /dev/null -w '%{http_code} %{content_type}' "$1"; }
           r=$(probe "$base"); echo "index        -> $r"; [[ "$r" == "200 text/html"* ]]
+          r=$(probe "${base}slice.html"); echo "slice page   -> $r"; [[ "$r" == "200 text/html"* ]]
           r=$(probe "${base}assets/does-not-exist.js"); echo "missing .js  -> $r"; [[ "$r" == 404* ]]
           js=$(curl -sS "$base" | grep -o 'assets/index-[^"]*\.js' | head -1)
           echo "entry        -> $js"; [[ -n "$js" ]]
