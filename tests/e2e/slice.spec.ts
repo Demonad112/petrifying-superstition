@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { SUBPATH } from '../../playwright.config';
 
 // The slice page (slice.html) is a second Vite input (K-03). It must be served at the root and under the Pages subpath.
-test.setTimeout(120_000);
+test.setTimeout(150_000);
+// The CI runner's software WebGL gave ~5 ticks/s (K-18), so a ~290-tick run needs about a minute, not 30 s.
+const AUTO_BUDGET_MS = 100_000;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -37,7 +39,7 @@ test('slice ?auto=1 kills the gorgon, picks up the rune and the matching stat go
   await page.goto('./slice.html?auto=1');
   const canvas = page.locator('canvas');
   await expect(canvas).toHaveAttribute('data-scene', 'Slice');
-  await expect(canvas).toHaveAttribute('data-complete', 'true', { timeout: 30_000 });
+  await expect(canvas).toHaveAttribute('data-complete', 'true', { timeout: AUTO_BUDGET_MS });
   await expect(canvas).toHaveAttribute('data-picked', '1');
   await expect(canvas).toHaveAttribute('data-ehp', '0');
   // Default seed drops a damage rune (SLICE_SEED, batch 2 test): DMG went 1 -> 2.
@@ -49,6 +51,6 @@ test('slice ?auto=1 kills the gorgon, picks up the rune and the matching stat go
 test('slice works under the Pages subpath', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto(`http://localhost:4174${SUBPATH}slice.html?auto=1`);
-  await expect(page.locator('canvas')).toHaveAttribute('data-complete', 'true', { timeout: 30_000 });
+  await expect(page.locator('canvas')).toHaveAttribute('data-complete', 'true', { timeout: AUTO_BUDGET_MS });
   expect(errors, 'console errors').toEqual([]);
 });
