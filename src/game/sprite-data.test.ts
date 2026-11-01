@@ -35,4 +35,12 @@ describe('code-defined sprites', () => {
       { x: 0, y: 1, w: 2, key: 'bone' },
     ]);
   });
+
+  it('slice sprites exist, with a gorgon of at least 24 px and a hero of about 12x16', () => {
+    for (const key of ['sliceHero', 'sliceGorgon', 'sliceRune', 'sliceStone', 'sliceTuft', 'sliceField'] as const) {
+      expect(SPRITES[key].length, key).toBeGreaterThan(0);
+    }
+    expect(SPRITES.sliceGorgon.length).toBeGreaterThanOrEqual(24);
+    expect([SPRITES.sliceHero[0]?.length, SPRITES.sliceHero.length]).toEqual([12, 16]);
+  });
 });
