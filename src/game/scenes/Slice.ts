@@ -13,6 +13,19 @@ import { PALETTE } from '../palette';
 const T = SLICE_TUNING;
 const GORGON_SCALE = 2;
 const HERO_SCALE = 3;
+const CARD_MS = 3000;
+const GLOW_MS = 3000;
+
+type StatKey = 'dmg' | 'haste' | 'swift' | 'vigor';
+const RUNES: Record<StatKey, { name: string; line: string }> = {
+  dmg: { name: 'RUNE OF FURY', line: 'Damage' },
+  haste: { name: 'RUNE OF QUICKENING', line: 'Haste' },
+  swift: { name: 'RUNE OF THE HARE', line: 'Swift' },
+  vigor: { name: 'RUNE OF STONE SKIN', line: 'Max HP' },
+};
+
+// Display values of the four stats, read from the sim state (no rules: baseDamage is just the label's starting value).
+const stats = (s: SimState): Record<StatKey, number> => ({ dmg: T.baseDamage + s.mDmg, haste: s.mHaste, swift: s.mSwift, vigor: s.maxHp });
 
 // Demo slice (docs/DEMO_SLICE.md): the existing sim run with SLICE_TUNING. View only: it renders SimState and
 // turns input into Commands. Every step() call passes SLICE_TUNING (K-09).
@@ -26,6 +39,11 @@ export class Slice extends Phaser.Scene {
   private rune!: Phaser.GameObjects.Image;
   private runeLabel!: Phaser.GameObjects.Text;
   private hpBar!: Phaser.GameObjects.Graphics;
+  private statText!: Phaser.GameObjects.Text;
+  private card!: Phaser.GameObjects.Text;
+  private panel!: Phaser.GameObjects.Container;
+  private changed: StatKey | null = null;
+  private glowUntil = 0;
   private readonly params = debugParams();
 
   constructor() {
@@ -50,6 +68,21 @@ export class Slice extends Phaser.Scene {
     this.gorgon = this.add.image(0, 0, 'sliceGorgon').setScale(GORGON_SCALE);
     this.hero = this.add.image(0, 0, 'sliceHero').setScale(HERO_SCALE);
     this.hpBar = this.add.graphics().setDepth(6);
+    this.changed = null;
+    this.glowUntil = 0;
+    const { width, height } = this.scale;
+    this.statText = this.add.text(12, height - 34, '', { fontFamily: 'monospace', fontSize: '16px', color: PALETTE.text, backgroundColor: '#0a0a10' }).setDepth(8).setPadding(6, 3);
+    this.card = this.add
+      .text(width / 2, 28, '', { fontFamily: 'monospace', fontSize: '22px', color: PALETTE.text, backgroundColor: '#16151c', align: 'center' })
+      .setOrigin(0.5, 0)
+      .setPadding(14, 8)
+      .setDepth(9)
+      .setVisible(false);
+    this.add
+      .text(width - 12, height - 30, 'WASD move   Arrows / Space / Click attack   R restart', { fontFamily: 'monospace', fontSize: '14px', color: PALETTE.accent })
+      .setOrigin(1, 0)
+      .setDepth(8);
+    this.panel = this.makePanel();
     this.input2 = new CommandInput(this, () => ({ x: this.sim.px / FP, y: this.sim.py / FP, face: this.sim.face }));
     bindMute(this);
     bindFx(this);
@@ -91,6 +124,8 @@ export class Slice extends Phaser.Scene {
       sfxSwing();
       slash(this, next.px / FP, next.py / FP, next.face);
     }
+    const lost = (prev.ehp[0] ?? 0) - (next.ex.length > 0 ? (next.ehp[0] ?? 0) : 0);
+    if (prev.ex.length > 0 && lost > 0) this.floatText(`-${lost}`, (prev.ex[0] ?? 0) / FP, (prev.ey[0] ?? 0) / FP - 40, PALETTE.rare);
     if (next.ex.length > 0 && next.ehp[0] !== undefined && prev.ehp[0] !== undefined && next.ehp[0] < prev.ehp[0]) {
       flashSprite(this, this.gorgon);
       burst(this, next.ex[0]! / FP, next.ey[0]! / FP, { count: 5, color: PALETTE.magic });
@@ -110,7 +145,38 @@ export class Slice extends Phaser.Scene {
     if (next.picked > prev.picked) {
       sfxPickup();
       burst(this, next.px / FP, next.py / FP, { count: 8, color: PALETTE.rare });
+      this.showPickup(prev, next);
     }
+  }
+
+  private floatText(text: string, x: number, y: number, color: number): void {
+    const t = this.add
+      .text(x, y, text, { fontFamily: 'monospace', fontSize: '20px', color: `#${color.toString(16).padStart(6, '0')}`, stroke: '#0a0a10', strokeThickness: 3 })
+      .setOrigin(0.5)
+      .setDepth(7);
+    this.tweens.add({ targets: t, y: y - 28, alpha: 0, duration: 400, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
+  }
+
+  // The first stat that differs between two states is the one the rune changed.
+  private showPickup(prev: SimState, next: SimState): void {
+    const a = stats(prev);
+    const b = stats(next);
+    const key = (Object.keys(a) as StatKey[]).find((k) => a[k] !== b[k]);
+    if (!key) return;
+    this.changed = key;
+    this.glowUntil = this.time.now + GLOW_MS;
+    this.card.setText(`${RUNES[key].name}\n${RUNES[key].line} ${a[key]} -> ${b[key]}`).setVisible(true);
+    this.time.delayedCall(CARD_MS, () => this.card.setVisible(false));
+    markData(this.game.canvas, 'rune', key);
+  }
+
+  private makePanel(): Phaser.GameObjects.Container {
+    const { width, height } = this.scale;
+    const box = this.add.rectangle(width / 2, height / 2, 420, 120, PALETTE.stone0, 0.92).setStrokeStyle(2, PALETTE.torch0);
+    const label = this.add
+      .text(width / 2, height / 2, 'SLICE COMPLETE\nPress R to play again', { fontFamily: 'monospace', fontSize: '26px', color: PALETTE.text, align: 'center' })
+      .setOrigin(0.5);
+    return this.add.container(0, 0, [box, label]).setDepth(10).setVisible(false);
   }
 
   private buildField(): void {
@@ -151,6 +217,15 @@ export class Slice extends Phaser.Scene {
       this.rune.setPosition((s.dx[0] ?? 0) / FP, (s.dy[0] ?? 0) / FP);
       this.runeLabel.setPosition((s.dx[0] ?? 0) / FP, (s.dy[0] ?? 0) / FP - 26);
     }
+    const st = stats(s);
+    const line = (k: StatKey, label: string, v: string): string => (k === this.changed && this.time.now < this.glowUntil ? `[${label} ${v}]` : `${label} ${v}`);
+    this.statText.setText(
+      [`HP ${Math.max(0, s.hp)}/${s.maxHp}`, line('dmg', 'DMG', String(st.dmg)), line('haste', 'HASTE', String(st.haste)), line('swift', 'SWIFT', String(st.swift))].join(' · '),
+    );
+    this.statText.setColor(this.changed && this.time.now < this.glowUntil ? PALETTE.accent : PALETTE.text);
+    const complete = s.picked >= 1;
+    this.panel.setVisible(complete);
+    markData(canvas, 'complete', String(complete));
     markData(canvas, 'tick', s.tick);
     markData(canvas, 'px', s.px);
     markData(canvas, 'ehp', s.ex.length ? (s.ehp[0] ?? 0) : 0);
