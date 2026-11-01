@@ -34,7 +34,7 @@ Dark, late-90s pixel look, built from code-defined sprites in a fixed 16-colour 
 | --- | --- | --- | --- |
 | Movement | `px py face` | `move` | Integer fixed point (16/px), wall clamp |
 | Combat | `cd inv hp ex ey ehp erar` | `attack` | Cone hit, knockback, cooldown reduced by haste; enemy contact damage with i-frames |
-| Rarity and drops | `drar dkind dval kills picked` | none | Weights and drop tables in `step.ts` / `state.ts`; all RNG via `rng.ts` |
+| Rarity and drops | `drar dkind dval kills picked` | none | Spawn weights, drop tables and every other number in `tuning.ts`; all RNG via `rng.ts` |
 | Modifiers | `mDmg mHaste mSwift mVigor` | none | Flat stat nudges; magnitude scales with rarity |
 | Map run | `tier exitOpen status` | none | Clear, exit, tier up |
 | Trig | none | none | `trig.ts`: 64-angle Q12 sine table, `isqrt` |
