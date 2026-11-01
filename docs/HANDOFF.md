@@ -1,6 +1,6 @@
 # Handoff
 
-_Updated 2026-11-01 · sim tuning moved to `src/sim/tuning.ts` (task A)_
+_Updated 2026-11-01 · demo slice on Pages (`slice.html`) and known-issues log_
 
 ## State
 - Repo created from the jam template and renamed `petrifying-superstition` (package, `<title>`, Menu, README, settings key `ps.settings`).
@@ -20,6 +20,10 @@ _Updated 2026-11-01 · sim tuning moved to `src/sim/tuning.ts` (task A)_
   It now uses window listeners. The e2e suite asserts the audio chunk loads only after the first input.
 - **CI:** e2e evidence artifact (`test-results/`), `verify-pages` job after Pages deploy, manual `E2E stress` workflow.
 - Tests: 72 Vitest (14 new in `tuning.test.ts`); 22 e2e (smoke 7, demo 7, pipeline 8).
+
+- **Demo slice** (`docs/DEMO_SLICE.md`, landed with PR 5): `slice.html` + `src/slice.ts` + `Slice` scene; `src/sim/slice.ts` (`SLICE_TUNING`, `SLICE_SEED = 4`, exit disabled with `exitRadius 0`, K-15). No sim rule changed: golden hash `990565fc` and both fixtures green. `?seed=N` and `?auto=1` (e2e only). `vite.config.ts` builds both pages (K-03); `verify-pages` probes `slice.html`; `tests/e2e/slice.spec.ts` (4 tests). New helper `flashSprite` (Phaser 4 tint FILL, K-17).
+- Tests: 87 Vitest; e2e 26 (22 + 4 slice). Live Pages probe of `slice.html`: NOT CHECKED until the Deploy of main finishes `verify-pages`.
+- Known issues: `docs/KNOWN_ISSUES.md` K-01..K-20 (K-14..K-20 found in the slice build). K-09 is fixed on branch `fix/play-run-tuning` (separate PR).
 
 ## Measured
 | Risk | Result |
@@ -42,7 +46,8 @@ _Updated 2026-11-01 · sim tuning moved to `src/sim/tuning.ts` (task A)_
 7. Housekeeping: delete merged remote branches.
 
 ## Next session's first task
-B: `/jam-concept` with the theme, and lock `docs/GDD.md` (Theme interpretation, Scope, Open questions are still empty).
+First, play `slice.html` on the live Pages URL (desktop and phone) and log feel notes in `docs/PLAYTEST.md`.
+B (blocked until the theme is announced): `/jam-concept` with the theme, and lock `docs/GDD.md` (Theme interpretation, Scope, Open questions are still empty).
 Then C: theme fit (room, sprites, names), hand-play for feel (the autopilot never takes damage, so tune enemy damage/aggro by playing),
 and save each playtest bug as an F8 replay in `tests/replays/`. Then D: `/jam-sim-balance`, whose adapter can now pass `makeTuning(overrides)`.
 Open: a second tier, a boss, and a real map generator are not in this slice.
