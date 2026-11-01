@@ -24,7 +24,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 **K-03 · new HTML page not built or 404 on Pages** _(expected, check during the slice)_
 - Cause: Vite `appType: 'mpa'` only builds `index.html` unless `build.rollupOptions.input` lists every page. `verify-pages` only probes the index.
 - Fix: add the page to `rollupOptions.input`, add an e2e test at root and subpath, and add a `verify-pages` probe.
-- Status: open until the slice lands.
+- Status: fixed (slice batches 4, 6, 7). `slice.html` was a 404 in `dist` without the input (e2e `slice.html returns 200 text/html` failed with `Received: 404`, passes with it).
 
 **K-04 · Pages must be served under a subpath**
 - Cause: Pages serves `/<repo>/`. Absolute asset paths break.
@@ -121,6 +121,13 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Fix: e2e budgets are generous and poll; `?speed=N` does not lift the cap, so keep the slice's e2e tolerant (a ~300-500 tick run).
 - Status: workaround.
 - Seen: batch 4.
+
+**K-19 · `pkill -f "vite preview"` kills the calling shell**
+- Symptom: a Bash tool call that ran `pkill -f "preview --port 4173"` exited 144 with no output.
+- Cause: `-f` matches the full command line, which includes the shell running the pkill command itself.
+- Fix: use a bracket pattern (`pkill -f "[p]review --port 4173"`) or kill by PID.
+- Status: workaround.
+- Seen: batches 5 and 6.
 
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
