@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   createState, DEFAULT_TUNING, encodeReplay, EXIT_X, EXIT_Y, FP, hashState, step, WORLD_H,
-  type Command, type CommandLog, type ReplayFile, type SimState,
+  type Command, type CommandLog, type ReplayFile, type SimState, type Tuning,
 } from '../../sim';
 import { sfxClear, sfxHurt, sfxKill, sfxPickup, sfxSwing } from '../audio';
 import { bindReplayExport, debugParams, markData, markMoment, markPaused, markScene } from '../debug';
@@ -9,6 +9,7 @@ import { ReplaySource } from '../demo';
 import { applyCameraFx, burst, flash, hitStop, resetHitStop, shake, slash, tickHitStop } from '../fx';
 import { bindFx, bindMute, CommandInput } from '../input';
 import { frameStats, runFrame, type FrameIO, type TickMode } from '../loop';
+import { vanishedEnemies } from '../kills';
 import { PALETTE } from '../palette';
 import { getSettings } from '../settings';
 
@@ -22,6 +23,8 @@ export interface PlayData {
 }
 
 export class Play extends Phaser.Scene {
+  // The tuning this run uses: passed to createState, step and every view lookup (K-09). Demo fixtures need the defaults.
+  private readonly tuning: Tuning = DEFAULT_TUNING;
   private sim!: SimState;
   private log: CommandLog = [];
   private accMs = 0;
@@ -46,7 +49,7 @@ export class Play extends Phaser.Scene {
   create(data: PlayData): void {
     markScene(this);
     const canvas = this.game.canvas;
-    this.sim = createState(data.seed);
+    this.sim = createState(data.seed, this.tuning);
     this.log = [];
     this.accMs = 0;
     this.paused = false;
@@ -165,7 +168,7 @@ export class Play extends Phaser.Scene {
 
   private apply(cmd: Command): void {
     const prev = this.sim;
-    this.sim = step(prev, cmd);
+    this.sim = step(prev, cmd, this.tuning);
     this.log.push(cmd);
     this.react(prev, this.sim);
   }
@@ -199,21 +202,9 @@ export class Play extends Phaser.Scene {
     }
   }
 
-  // Finds the enemies that vanished by walking both lists in order: a survivor keeps its rarity and has moved at most a knockback.
   private reactKills(prev: SimState, next: SimState): void {
-    if (next.ex.length === prev.ex.length) return;
-    let j = 0;
-    for (let i = 0; i < prev.ex.length; i++) {
+    for (const i of vanishedEnemies(prev, next, this.tuning)) {
       const rar = prev.erar[i] ?? 0;
-      const alive =
-        j < next.ex.length &&
-        next.erar[j] === rar &&
-        Math.abs((next.ex[j] ?? 0) - (prev.ex[i] ?? 0)) <= DEFAULT_TUNING.knockback + FP &&
-        Math.abs((next.ey[j] ?? 0) - (prev.ey[i] ?? 0)) <= DEFAULT_TUNING.knockback + FP;
-      if (alive) {
-        j++;
-        continue;
-      }
       const x = (prev.ex[i] ?? 0) / FP;
       const y = (prev.ey[i] ?? 0) / FP;
       sfxKill();
@@ -277,7 +268,7 @@ export class Play extends Phaser.Scene {
     this.exitImg.setAlpha(sim.exitOpen ? 1 : 0.25);
     const mods = [sim.mDmg && `DMG+${sim.mDmg}`, sim.mHaste && `HASTE+${sim.mHaste}`, sim.mSwift && `SWIFT+${sim.mSwift}`].filter(Boolean).join(' ');
     this.hud.setText(
-      `TIER ${sim.tier}  HP ${Math.max(0, sim.hp)}/${sim.maxHp}  KILLS ${sim.kills.reduce((a, b) => a + b, 0)}/${DEFAULT_TUNING.enemyCount}  ${mods}`,
+      `TIER ${sim.tier}  HP ${Math.max(0, sim.hp)}/${sim.maxHp}  KILLS ${sim.kills.reduce((a, b) => a + b, 0)}/${this.tuning.enemyCount}  ${mods}`,
     );
     this.muteHud.setVisible(getSettings().muted);
     markData(canvas, 'tick', sim.tick);
