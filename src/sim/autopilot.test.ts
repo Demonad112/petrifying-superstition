@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { checkReplay, createState, encodeReplay, runAutopilot, step, TICK_HZ, type ReplayFile } from './index';
+import { autopilot, checkReplay, createState, encodeReplay, makeTuning, runAutopilot, step, TICK_HZ, type Command, type ReplayFile } from './index';
 
 // The demo fixture is the autopilot's recording. Seed 5 was picked by scanning seeds 1-40: it clears the map in
 // ~27 s and contains magic and rare kills plus several modifier pickups.
@@ -42,4 +42,23 @@ describe('autopilot', () => {
       expect(checkReplay(stored).ok).toBe(true);
     });
   }
+});
+
+describe('runAutopilot tuning', () => {
+  it('runAutopilot with an attackRange override decides with that tuning', () => {
+    // arrange: a short attack range, so the bot must close in further than it does with the defaults
+    const t = makeTuning({ attackRange: 320 });
+    const s0 = createState(DEMO_SEED, t);
+    const expected: Command[] = [];
+    for (let s = s0; expected.length < 300 && s.status === 'playing'; ) {
+      const cmd = autopilot(s, t);
+      expected.push(cmd);
+      s = step(s, cmd, t);
+    }
+    // act
+    const run = runAutopilot(s0, 300, (s, c) => step(s, c, t), t);
+    // assert: same log as deciding with t, and different from deciding with the defaults
+    expect(run.log).toEqual(expected);
+    expect(runAutopilot(s0, 300, (s, c) => step(s, c, t)).log).not.toEqual(expected);
+  });
 });

@@ -57,7 +57,7 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: `runAutopilot(s0, n, (s, c) => step(s, c, t))` steps with `t`, but the bot decides with `DEFAULT_TUNING` (attack range).
 - Cause: `runAutopilot` calls `autopilot(s)` without `t`.
 - Fix: add a `t` parameter and pass it through. Default-tuning hashes don't change. Regression test with an `attackRange` override.
-- Status: open, slice batch 1.
+- Status: fixed (slice batch 1). Regression test `runAutopilot with an attackRange override decides with that tuning` failed before the fix (log diverged at the first move), passes after; default-tuning hashes unchanged.
 
 **K-09 · the view reads `DEFAULT_TUNING` directly**
 - Symptom: Play's HUD kill total (`enemyCount`) and kill detection (`knockback`) are wrong for any run with overrides.
@@ -86,6 +86,13 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Symptom: writing a throwaway Vitest file into `src/sim/` to probe seeds was refused.
 - Fix: put probes in `spikes/<slug>/` (per the spike rule), or write them as real tests.
 - Status: workaround.
+
+**K-14 · session-designated `claude/*` branch conflicts with the branch rules**
+- Symptom: the cloud session's setup named `claude/demo-slice-build-<id>` as the branch to develop and push, while the repo rules and the task say never create or push `claude/*`.
+- Cause: the harness injects a branch instruction independent of `CLAUDE.md`; a local `claude/demo-slice-build-<id>` and its origin copy were pre-created.
+- Fix: followed the repo rule: worked on `feat/demo-slice`, never pushed the `claude/*` branch. Owner should delete the stray local/remote `claude/*` branches (see K-07).
+- Status: workaround.
+- Seen: slice session start.
 
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
