@@ -28,7 +28,8 @@ test('boots without console errors and serves assets with real content-types', a
   await page.locator('canvas').click();
   await expect(page.locator('canvas')).toHaveAttribute('data-scene', 'Play');
   await page.keyboard.press('Space');
-  await page.waitForTimeout(500);
+  // Poll instead of sleeping: wait until the act tick has run.
+  await expect.poll(async () => Number(await page.locator('canvas').getAttribute('data-tick')), { timeout: 20_000 }).toBeGreaterThan(30);
 
   expect(badAssets, 'asset responses with wrong content-type (SPA fallback?)').toEqual([]);
   expect(errors, 'console errors').toEqual([]);
