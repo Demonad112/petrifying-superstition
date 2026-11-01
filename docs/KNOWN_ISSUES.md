@@ -94,5 +94,19 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Status: workaround.
 - Seen: slice session start.
 
+**K-15 · killing the last enemy opens the exit, and the sim freezes if the player reaches it**
+- Symptom: with `enemyCount 1` the exit opens on the kill; walking into it sets `status='cleared'`, after which `step` returns the same state, so a rune not yet picked up can never be taken.
+- Cause: the exit rule is unconditional; the slice has no use for it. The plan's "hide the exit sprite" only hides it.
+- Fix: `exitRadius: 0` in `SLICE_OVERRIDES` (tuning only, no rule change); the exit sprite is not drawn. Test `slice exit never triggers` failed with the line removed, passes with it. Caveat: `near` uses `<=`, so standing exactly on the exit point (a 1-in-thousands fixed-point coincidence) still clears; accepted for a sketch.
+- Status: fixed.
+- Seen: batch 2.
+
+**K-16 · seed probe: first damage-drop seed is 4, not 1**
+- Symptom: seeds 1..3 drop vigor (`maxHp` +4, no damage change).
+- Cause: drop kind is a seeded RNG draw; DMG is 1 in 4.
+- Fix: `SLICE_SEED = 4` (autopilot probe over 1..50, all pick up the rune in 267..531 ticks).
+- Status: fixed.
+- Seen: batch 2.
+
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
