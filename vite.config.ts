@@ -6,5 +6,10 @@ export default defineConfig({
   appType: 'mpa',
   server: { port: 5173, strictPort: true },
   preview: { port: 4173, strictPort: true },
-  build: { target: 'es2022', chunkSizeWarningLimit: 2000 },
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 2000,
+    // appType 'mpa' only builds index.html; every extra page must be listed here (K-03).
+    rollupOptions: { input: { main: 'index.html', slice: 'slice.html' } },
+  },
 });
