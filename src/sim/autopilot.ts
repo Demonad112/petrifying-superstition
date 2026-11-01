@@ -1,11 +1,12 @@
 import type { Command, Dir } from './commands';
-import { ATTACK_RANGE } from './step';
 import { EXIT_X, EXIT_Y, FP, type SimState } from './state';
+import { DEFAULT_TUNING, type Tuning } from './tuning';
 
 // Pure director: reads state, returns this tick's command. No RNG and no memory, so a run is fully
-// determined by the seed. Records the demo fixtures; the player never sees it.
+// determined by the seed and tuning. Records the demo fixtures; the player never sees it.
+// These are the bot's own habits, not game rules, so they stay here rather than in tuning.ts.
 const DEAD_ZONE = 6 * FP;
-const STRIKE = ATTACK_RANGE - 4 * FP;
+const STRIKE_MARGIN = 4 * FP; // strike a little inside the attack range
 const BACK_OFF = 26 * FP;
 
 const sign = (v: number): -1 | 0 | 1 => (v > 0 ? 1 : v < 0 ? -1 : 0);
@@ -31,7 +32,7 @@ function toward(s: SimState, x: number, y: number): Command {
   return { t: 'move', dx: Math.abs(dx) > DEAD_ZONE ? sign(dx) : 0, dy: Math.abs(dy) > DEAD_ZONE ? sign(dy) : 0 };
 }
 
-export function autopilot(s: SimState): Command {
+export function autopilot(s: SimState, t: Tuning = DEFAULT_TUNING): Command {
   if (s.status !== 'playing') return { t: 'wait' };
   const e = nearest(s, s.ex, s.ey);
   if (e >= 0) {
@@ -41,7 +42,7 @@ export function autopilot(s: SimState): Command {
     const dir: Dir = Math.abs(rx) >= Math.abs(ry) ? (rx >= 0 ? 0 : 2) : ry >= 0 ? 1 : 3;
     const along = dir % 2 === 0 ? Math.abs(rx) : Math.abs(ry);
     const side = dir % 2 === 0 ? Math.abs(ry) : Math.abs(rx);
-    const inCone = side <= along && dist2 <= STRIKE * STRIKE;
+    const inCone = side <= along && dist2 <= (t.attackRange - STRIKE_MARGIN) ** 2;
     if (inCone && s.cd === 0) return { t: 'attack', dir };
     // Waiting on the cooldown with an enemy on top of us: step away instead of taking contact damage.
     if (s.cd > 0 && dist2 < BACK_OFF * BACK_OFF) return { t: 'move', dx: -sign(rx) as -1 | 0 | 1, dy: -sign(ry) as -1 | 0 | 1 };

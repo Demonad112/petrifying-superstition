@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ATTACK_CD, ENEMY_COUNT, EXIT_X, EXIT_Y, FP, IFRAMES, MAX_X, MIN_X, createState, hashState, replay, step, type CommandLog, type SimState,
+  DEFAULT_TUNING as T, EXIT_X, EXIT_Y, FP, MAX_X, MIN_X, createState, hashState, replay, step, type CommandLog, type SimState,
 } from './index';
 
 const SEED = 1337;
@@ -43,11 +43,11 @@ describe('sim replay', () => {
 });
 
 describe('spawn', () => {
-  it('places ENEMY_COUNT enemies inside the arena, rarity in 0..2, deterministically', () => {
+  it('places enemyCount enemies inside the arena, rarity in 0..2, deterministically', () => {
     const s = createState(SEED);
-    expect(s.ex).toHaveLength(ENEMY_COUNT);
+    expect(s.ex).toHaveLength(T.enemyCount);
     expect(createState(SEED)).toEqual(s);
-    for (let i = 0; i < ENEMY_COUNT; i++) {
+    for (let i = 0; i < T.enemyCount; i++) {
       expect(s.ex[i]).toBeGreaterThanOrEqual(MIN_X);
       expect(s.ex[i]).toBeLessThanOrEqual(MAX_X);
       expect([0, 1, 2]).toContain(s.erar[i]);
@@ -76,7 +76,7 @@ describe('player', () => {
     const s0 = blank({ ex: [blank().px + 30 * FP, blank().px - 30 * FP, blank().px + 20 * FP], ey: [blank().py, blank().py, blank().py + 40 * FP], ehp: [5, 5, 5], erar: [0, 0, 0] });
     const s1 = step(s0, { t: 'attack', dir: 0 });
     expect(s1.ehp).toEqual([4, 5, 5]);
-    expect(s1.cd).toBe(ATTACK_CD);
+    expect(s1.cd).toBe(T.attackCd);
     expect(step(s1, { t: 'attack', dir: 0 }).ehp).toEqual([4, 5, 5]); // still cooling down
   });
 
@@ -108,7 +108,7 @@ describe('player', () => {
     const s0 = blank({ ex: [blank().px], ey: [blank().py], ehp: [3], erar: [2] });
     const s1 = step(s0, { t: 'wait' });
     expect(s1.hp).toBe(s0.hp - 2);
-    expect(s1.inv).toBe(IFRAMES);
+    expect(s1.inv).toBe(T.iframes);
     expect(step(s1, { t: 'wait' }).hp).toBe(s1.hp);
     const dead = step({ ...s0, hp: 2 }, { t: 'wait' });
     expect(dead.status).toBe('dead');
