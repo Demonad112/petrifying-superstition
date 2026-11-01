@@ -136,6 +136,13 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Status: workaround. Next time: land the plan docs on `main` first, or start the build on its own branch.
 - Seen: end of the slice session.
 
+**K-21 · overlapping e2e runs kill each other's preview servers**
+- Symptom: a local `npm run e2e` finished "20 passed, 6 failed" with `net::ERR_CONNECTION_REFUSED` on `localhost:4173`, mid-run.
+- Cause: a first run (backgrounded, no result line) was still alive when a second was started. Outside CI Playwright reuses an existing server (`reuseExistingServer`), and when the first run exited it stopped the servers it had spawned, under the second.
+- Fix: one e2e run at a time; before starting, check `pgrep -f "[p]laywright test"` and wait for it. Don't treat the failures as product failures; re-run clean.
+- Status: workaround.
+- Seen: slice session, final verification.
+
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
 - Slice polish left out on purpose: per-line glow on the stat panel (now one Text, the changed stat is bracketed and the whole line is tinted), a menu link to `slice.html`, sound design, a pause overlay, hand-play feel tuning (the `?auto=1` run never takes damage).
