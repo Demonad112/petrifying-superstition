@@ -9,6 +9,7 @@ export class Preload extends Phaser.Scene {
 
   create(): void {
     bakeSprites(this);
-    this.scene.start('Menu');
+    // Entry pages choose where to go after the bake (slice.html sets 'firstScene' to 'Slice').
+    this.scene.start((this.game.registry.get('firstScene') as string | undefined) ?? 'Menu');
   }
 }

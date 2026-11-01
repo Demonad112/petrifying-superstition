@@ -31,6 +31,15 @@ export function slash(scene: Phaser.Scene, x: number, y: number, dir: number): v
   scene.tweens.add({ targets: arc, alpha: 0, scaleX: horizontal ? 1.6 : 1, scaleY: horizontal ? 1 : 1.6, duration: 120, ease: 'Quad.easeOut', onComplete: () => arc.destroy() });
 }
 
+// White hit flash on a sprite. Phaser 4 has no setTintFill(): the fill is `setTint(c).setTintMode(FILL)`, and the
+// mode must be put back to MULTIPLY or the sprite stays a white silhouette (K-17).
+export function flashSprite(scene: Phaser.Scene, img: Phaser.GameObjects.Image, ms = 90): void {
+  img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+  scene.time.delayedCall(ms, () => {
+    if (img.active) img.setTintMode(Phaser.TintModes.MULTIPLY).setTint(0xffffff);
+  });
+}
+
 // ---- Game-feel kit (view-only). Nothing here touches SimState or the Command log (DECISIONS #17). ----
 // Budget rules: a trigger fires at most one shake, one flash, one burst and one hit-stop; shake <= 0.005,
 // flash <= 120 ms, hit-stop <= 80 ms, burst <= 24 particles. 'reduced' drops shake and flash and halves bursts.

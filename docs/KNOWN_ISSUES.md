@@ -108,5 +108,19 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Status: fixed.
 - Seen: batch 2.
 
+**K-17 · Phaser 4 hit flash: no `setTintFill`, and the fill mode sticks**
+- Symptom: `setTintFill()` is typed but deprecated (returns void); `setTint(c)` alone doesn't fill. A flash that only calls `clearTint` would leave the sprite a white silhouette.
+- Cause: Phaser 4 split colour and mode: `setTint(c).setTintMode(Phaser.TintModes.FILL)`; the mode persists until set back.
+- Fix: `flashSprite` in `src/game/fx.ts` sets FILL, then restores `MULTIPLY` + white tint after 90 ms. Checked against `node_modules/phaser/types/phaser.d.ts` before use.
+- Status: fixed.
+- Seen: batch 4.
+
+**K-18 · headless slice runs at ~13 ticks/s (software WebGL)**
+- Symptom: `?auto=1` reached tick 63 in 5 s in headless Chromium.
+- Cause: same as K-01 (SwiftShader frames, 5-step catch-up cap).
+- Fix: e2e budgets are generous and poll; `?speed=N` does not lift the cap, so keep the slice's e2e tolerant (a ~300-500 tick run).
+- Status: workaround.
+- Seen: batch 4.
+
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
