@@ -1,6 +1,6 @@
-# dummy-gamer-3
+# petrifying-superstition
 
-Phaser 4 browser game template, 960x540, keyboard and mouse.
+Game Off 2026 entry. Phaser 4 browser game, 960x540, keyboard and mouse. Built from the jam template.
 
 ## Controls
 
