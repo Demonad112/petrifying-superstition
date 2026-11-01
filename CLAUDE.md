@@ -44,3 +44,29 @@ Browser game, 960x540, Phaser 4 + TypeScript strict + Vite. Solo, 30-day jam.
 - Local sessions (Desktop): Browser preview pane, screenshots, feel playtests, worktree tests,
   anything needing secrets or logins (itch, butler, gh secrets). Runbook: `docs/LOCAL.md`.
 - Deploys: CI on every push/PR. On main, `deploy.yml` publishes to GitHub Pages and to itch via butler.
+
+## Public surface
+- Branches: feat/<slug>, fix/<slug>, chore/<slug>. Never create or push claude/* branches.
+- Never write PR bodies, commit messages, README, docs or code comments that mention Claude, Claude Code, AI, or a claude.ai link.
+
+## Gameplay code (src/sim/**)
+- Every tunable number lives in `src/sim/tuning.ts` (flat `Record<string, number>`); no magic numbers in sim logic.
+- Sim time is fixed-step ticks, never wall-clock or frame delta; the view interpolates.
+- Sim never imports Phaser, DOM, or `src/game/**`; the view reads state and sends commands only.
+- Each mechanic exposes legal commands so bots, tests, and input validation share one source of truth.
+
+## Tests
+- Name tests `<system> <scenario> <expected>`; arrange / act / assert.
+- Every bug fix gets a regression test. Run it against the unfixed code and watch it FAIL before fixing — a test only ever seen passing proves nothing.
+- Sim bugs found by the balance runner: reproduce with the exact seed.
+
+## Spikes
+- Throwaway code lives only in `spikes/<slug>/`; nothing in `src/` imports from it; excluded from the build.
+- A successful spike is rewritten in `src/sim/` with tests, never promoted by cleanup.
+
+## Honest status
+- A check that wasn't run is NOT CHECKED / NOT ASSESSED, never PASS. Absence of evidence isn't evidence of absence.
+
+## Skills
+- Theme → GDD: /jam-concept · test an idea: /jam-spike · on track?: /jam-scope-check
+- After playing: /jam-playtest · numbers: /jam-sim-balance · before any release: /jam-ship-check
