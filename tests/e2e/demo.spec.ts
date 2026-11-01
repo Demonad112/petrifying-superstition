@@ -42,7 +42,7 @@ for (const { name, file } of DEMOS) {
       const json: string[] = [];
       page.on('response', (r) => r.url().includes(`demo-${name}`) && json.push(`${r.status()} ${r.headers()['content-type'] ?? ''}`));
 
-      await page.goto(`./?demo=${name}&perf=1`);
+      await page.goto(`./?demo=${name}&perf=1&speed=4`);
       const canvas = page.locator('canvas');
       await expect(canvas).toHaveAttribute('data-mode', 'demo');
       expect(await finish(page)).toBe(file.hash);

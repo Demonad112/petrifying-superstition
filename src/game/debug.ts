@@ -48,7 +48,7 @@ export function markHitStop(canvas: HTMLCanvasElement, active: boolean | null): 
 
 // View-only URL parameters (DECISIONS #18). None of them enter SimState or the Command log.
 //   ?demo=<name>  play tests/replays/demo-<name>.json through the live clock and step path
-//   ?speed=<n>    wall-delta multiplier (0.25-8); the catch-up cap still applies
+//   ?speed=<n>    wall-delta multiplier (0.25-8); the catch-up cap scales with it
 //   ?fps=<n>      fixed setTimeout-driven frame rate (5-240), read once in main.ts
 //   ?shots=1      auto-pause at each moment (resume with P), for screenshots
 //   ?perf=1       record frame deltas; summary on window.__perf and canvas data-perf

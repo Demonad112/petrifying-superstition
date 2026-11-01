@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { checkReplay, createState, encodeReplay, hashState, nextRandom, replay, step, type Command, type CommandLog, type SimState } from '../sim';
-import { frameStats, runFrame, type FrameIO } from './loop';
+import { MAX_STEPS_PER_FRAME, checkReplay, createState, encodeReplay, hashState, nextRandom, replay, step, type Command, type CommandLog, type SimState } from '../sim';
+import { catchUpCap, frameStats, runFrame, type FrameIO } from './loop';
 
 // Test-only PRNG for frame timings (not the sim RNG): keeps the property test reproducible.
 function timings(seed: number): () => number {
@@ -133,5 +133,32 @@ describe('frameStats', () => {
     const d = Array.from({ length: 100 }, (_, i) => i + 1);
     expect(frameStats(d)).toEqual({ frames: 100, p50: 51, p95: 96, max: 100 });
     expect(frameStats([])).toEqual({ frames: 0, p50: 0, p95: 0, max: 0 });
+  });
+});
+
+describe('runFrame catch-up cap', () => {
+  const io = (applied: number[]): FrameIO => ({
+    mode: 'realtime',
+    paused: false,
+    tickHitStop: () => false,
+    next: () => ({ t: 'wait' }),
+    clearInput: () => {},
+    apply: () => void applied.push(1),
+  });
+
+  it('runFrame with a raised cap runs more catch-up ticks than the default cap', () => {
+    const a: number[] = [];
+    const b: number[] = [];
+    runFrame(0, 1000, io(a));
+    runFrame(0, 1000, io(b), 20);
+    expect(a.length).toBe(MAX_STEPS_PER_FRAME);
+    expect(b.length).toBe(20);
+  });
+
+  it('catchUpCap scales the cap with the speed multiplier and never drops below the default', () => {
+    expect(catchUpCap(1)).toBe(MAX_STEPS_PER_FRAME);
+    expect(catchUpCap(0.25)).toBe(MAX_STEPS_PER_FRAME);
+    expect(catchUpCap(4)).toBe(MAX_STEPS_PER_FRAME * 4);
+    expect(catchUpCap(2.5)).toBe(Math.ceil(MAX_STEPS_PER_FRAME * 2.5));
   });
 });

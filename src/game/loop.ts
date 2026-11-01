@@ -1,4 +1,4 @@
-import { advanceClock, type Command } from '../sim';
+import { advanceClock, MAX_STEPS_PER_FRAME, type Command } from '../sim';
 
 // Phaser-free frame driver. Play calls runFrame once per update; tests drive it with synthetic frame deltas.
 // Wall time (delta, pause, hit-stop) only decides how many ticks run this frame, never what they contain,
@@ -20,8 +20,13 @@ export interface FrameIO {
   apply(cmd: Command): void;
 }
 
+// Catch-up cap for a ?speed=N run: the wall delta is multiplied by N, so the cap scales with it (view-only).
+export function catchUpCap(speed: number): number {
+  return Math.max(MAX_STEPS_PER_FRAME, Math.ceil(MAX_STEPS_PER_FRAME * speed));
+}
+
 // Returns the new clock accumulator.
-export function runFrame(accMs: number, deltaMs: number, io: FrameIO): number {
+export function runFrame(accMs: number, deltaMs: number, io: FrameIO, maxSteps = MAX_STEPS_PER_FRAME): number {
   if (io.paused) {
     // No ticks and no clock advance, so resuming never catches up.
     io.clearInput();
@@ -34,7 +39,7 @@ export function runFrame(accMs: number, deltaMs: number, io: FrameIO): number {
     if (cmd) io.apply(cmd);
     return accMs;
   }
-  const { steps, accMs: acc } = advanceClock(accMs, deltaMs);
+  const { steps, accMs: acc } = advanceClock(accMs, deltaMs, maxSteps);
   for (let i = 0; i < steps; i++) {
     const cmd = io.next();
     if (!cmd) break;

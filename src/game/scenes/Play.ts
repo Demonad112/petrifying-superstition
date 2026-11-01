@@ -8,7 +8,7 @@ import { bindReplayExport, debugParams, markData, markMoment, markPaused, markSc
 import { ReplaySource } from '../demo';
 import { applyCameraFx, burst, flash, hitStop, resetHitStop, shake, slash, tickHitStop } from '../fx';
 import { bindFx, bindMute, CommandInput } from '../input';
-import { frameStats, runFrame, type FrameIO, type TickMode } from '../loop';
+import { catchUpCap, frameStats, runFrame, type FrameIO, type TickMode } from '../loop';
 import { vanishedEnemies } from '../kills';
 import { PALETTE } from '../palette';
 import { getSettings } from '../settings';
@@ -99,7 +99,7 @@ export class Play extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (this.params.perf && !this.paused) this.deltas.push(delta);
-    this.accMs = runFrame(this.accMs, delta * this.params.speed, this.frameIO);
+    this.accMs = runFrame(this.accMs, delta * this.params.speed, this.frameIO, catchUpCap(this.params.speed));
     // End after a pause lifts, so a ?shots capture on the last moment is not skipped.
     if (!this.paused && !this.ended && (this.source?.done || this.sim.status !== 'playing')) this.end();
     this.render();
