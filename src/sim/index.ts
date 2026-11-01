@@ -7,4 +7,5 @@ export * from './rng';
 export * from './state';
 export * from './step';
 export * from './trig';
+export * from './slice';
 export * from './tuning';
