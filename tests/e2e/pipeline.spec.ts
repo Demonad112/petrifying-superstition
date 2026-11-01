@@ -53,12 +53,13 @@ for (const [w, h] of [[960, 540], [640, 360], [390, 844], [844, 390]] as const) 
 }
 
 test('no audio code loads before the first input, and it loads after one', async ({ page }) => {
+  test.setTimeout(120_000); // the whole ~27 s demo plays first, and headless software GL is slow
   const zzfx: string[] = [];
   page.on('request', (r) => /zzfx/i.test(r.url()) && zzfx.push(r.url()));
-  await page.goto('./?demo=baseline&speed=4');
+  await page.goto('./?demo=map-seed5&speed=4');
   const canvas = page.locator('canvas');
   // The whole demo plays with no user input: no AudioContext and no audio chunk.
-  await expect(canvas).toHaveAttribute('data-scene', 'GameOver', { timeout: 60_000 });
+  await expect(canvas).toHaveAttribute('data-scene', 'GameOver', { timeout: 100_000 });
   expect(zzfx, 'audio chunk requested before input').toEqual([]);
   await canvas.click();
   await expect.poll(() => zzfx.length, { message: 'audio chunk loads on first input', timeout: 10_000 }).toBeGreaterThan(0);

@@ -1,10 +1,14 @@
 # Handoff
 
-_Updated 2026-11-01 · pipeline-proof demo, PR 1 (keepers)_
+_Updated 2026-11-01 · pipeline-proof demo, PR 2 (map-run mini-slice)_
 
 ## State
 - Repo created from the jam template and renamed `petrifying-superstition` (package, `<title>`, Menu, README, settings key `ps.settings`).
-- Sim is still the template skeleton (`act` rolls a d6). PR 2 replaces it with the map-run mini-slice.
+- **Sim (DECISIONS #21):** one tier-1 walled room, 12 enemies (normal/magic/rare by RNG), melee cone `attack`, `move`, rarity-based modifier drops, exit and tier-up.
+  Integer fixed point plus a literal sine table in `src/sim/trig.ts`. Golden hash `990565fc`.
+- **Autopilot** (`src/sim/autopilot.ts`) records `tests/replays/demo-map-seed5.json` (1654 ticks, ~27.6 s, hash `d8f92ce5`) and `baseline-seed42.json`.
+  `UPDATE_DEMO=1 npx vitest run autopilot` re-records after a deliberate rule change. Live play: WASD move, arrows/Space/click attack.
+- `demo-baseline.json` is gone (its `act` log cannot replay). The audio-gating and hit-stop e2e tests now use `?demo=map-seed5`.
 - **Frame driver** `src/game/loop.ts` (`runFrame`): Phaser-free clock/pause/hit-stop scheduling, used by Play and property-tested in Vitest.
 - **Demo mode** (DECISIONS #18): `?demo=<name>` or `D` on the Menu plays `tests/replays/demo-<name>.json` through the live path.
   `demo-baseline.json` is a 6 s skeleton demo (seed 7, 360 ticks, hash `47aa9ca9`).
@@ -13,7 +17,7 @@ _Updated 2026-11-01 · pipeline-proof demo, PR 1 (keepers)_
 - **Audio fix:** the template's unlock lived on Boot's scene input and was removed when Boot shut down, so no sound ever played.
   It now uses window listeners. The e2e suite asserts the audio chunk loads only after the first input.
 - **CI:** e2e evidence artifact (`test-results/`), `verify-pages` job after Pages deploy, manual `E2E stress` workflow.
-- Tests: 30 Vitest; 22 e2e (smoke 7, demo 7, pipeline 8).
+- Tests: 58 Vitest; 22 e2e (smoke 7, demo 7, pipeline 8).
 
 ## Measured
 | Risk | Result |
@@ -35,9 +39,8 @@ _Updated 2026-11-01 · pipeline-proof demo, PR 1 (keepers)_
 7. Housekeeping: delete merged remote branches.
 
 ## Next session's first task
-PR 2: the map-run mini-slice fitted to the theme. One tier-1 map, normal/magic/rare enemies by RNG, rarity-based modifier drops,
-`move{dx,dy}` + `attack{dir}`, an integer trig table, and a `demo-map-seed<N>.json` fixture from an autopilot director.
-It is squash-merged so it can be reverted or promoted.
+Theme fit: replace the neutral room, sprites and names with the theme once chosen, then hand-play for feel (the autopilot never takes damage, so tune enemy damage/aggro by playing).
+Save each playtest bug as an F8 replay in `tests/replays/`. Open: a second tier, a boss, and a real map generator are not in this slice.
 
 ## Measurements
 | Metric | Value | Notes |

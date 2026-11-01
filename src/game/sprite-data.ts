@@ -24,25 +24,98 @@ export const PIXEL: Readonly<Record<string, PaletteKey>> = {
 
 export const SPRITE_MAX = 32;
 
+// `X` is the rarity colour: the outline and horns, so rarity reads at a glance.
+const ENEMY = [
+  '.X........X.',
+  '.XX......XX.',
+  '..XXXXXXXX..',
+  '.X11111111X.',
+  '.X1b1111b1X.',
+  '.X11111111X.',
+  '.X111rr111X.',
+  '.X11111111X.',
+  '.XX111111XX.',
+  '..XX1111XX..',
+  '..X.X..X.X..',
+  '..X.X..X.X..',
+] as const;
+
+// One gem per rarity; `c` is the rarity colour, `b` the highlight.
+const GEM = ['..cc..', '.cbcc.', 'cbcccc', '.cccc.', '..cc..'] as const;
+const recolor = (rows: readonly string[], from: string, to: string): string[] => rows.map((r) => r.replaceAll(from, to));
+
 export const SPRITES = {
-  // Template skeleton: a carved rune stone. Replaced by the real game's sprites.
-  block: [
-    '....11111111....',
-    '...1222222221...',
-    '..122333333221..',
-    '.12233333333221.',
-    '.12333TTTT33321.',
-    '.1233T3333T3321.',
-    '.123333TT333321.',
-    '.12333T33T33321.',
-    '.1233T3333T3321.',
-    '.12333TTTT33321.',
-    '.12333333333321.',
-    '.12223333332221.',
-    '.11222222222211.',
-    '..011111111110..',
-    '...0000000000...',
-    '................',
+  player: [
+    '....bbbb....',
+    '...bbbbbb...',
+    '...b0bb0b...',
+    '...bbbbbb...',
+    '....ffff....',
+    '..ffffffff..',
+    '..f.ffff.f..',
+    '..f.ffff.f..',
+    '....f..f....',
+    '....f..f....',
+    '...00..00...',
+    '...00..00...',
+  ],
+  // Enemies: the eye colour is the rarity colour (normal, magic, rare).
+  enemy0: recolor(ENEMY, 'X', 'w'),
+  enemy1: recolor(ENEMY, 'X', 'M'),
+  enemy2: recolor(ENEMY, 'X', 'Y'),
+  gem0: recolor(GEM, 'c', 'w'),
+  gem1: recolor(GEM, 'c', 'M'),
+  gem2: recolor(GEM, 'c', 'Y'),
+  gem3: recolor(GEM, 'c', 'U'),
+  floor: [
+    '1111111111',
+    '1111211111',
+    '1111111111',
+    '1211111121',
+    '1111111111',
+    '1111112111',
+    '1121111111',
+    '1111111111',
+    '1111211112',
+    '1111111111',
+  ],
+  wall: [
+    '2222122222',
+    '2222122222',
+    '1111111111',
+    '2212222221',
+    '2212222221',
+    '1111111111',
+    '2222122222',
+    '2222122222',
+    '1111111111',
+    '2221222222',
+  ],
+  exit: [
+    '....ffffff....',
+    '..ffffffffff..',
+    '.fffbbbbbffff.',
+    '.ffbbffffbbff.',
+    'ffbbf....fbbff',
+    'ffbf......fbff',
+    'ffbf......fbff',
+    'ffbf......fbff',
+    'ffbbf....fbbff',
+    '.ffbbffffbbff.',
+    '.fffbbbbbffff.',
+    '..ffffffffff..',
+    '....ffffff....',
+    '..............',
+  ],
+  torch: [
+    '.T.T.',
+    '..T..',
+    '.tTt.',
+    '.ttt.',
+    '..1..',
+    '..1..',
+    '..1..',
+    '..1..',
   ],
 } satisfies Record<string, readonly string[]>;
 

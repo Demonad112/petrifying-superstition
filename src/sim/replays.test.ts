@@ -8,10 +8,10 @@ import type { CommandLog } from './commands';
 const FIXTURES = import.meta.glob<ReplayFile>('../../tests/replays/*.json', { eager: true, import: 'default' });
 
 describe('replay format', () => {
-  const log: CommandLog = [{ t: 'wait' }, { t: 'wait' }, { t: 'act' }, { t: 'wait' }];
+  const log: CommandLog = [{ t: 'wait' }, { t: 'wait' }, { t: 'attack', dir: 0 }, { t: 'wait' }];
 
   it('run-length encodes repeated commands', () => {
-    expect(encodeReplay(7, log).runs).toEqual([[{ t: 'wait' }, 2], [{ t: 'act' }, 1], [{ t: 'wait' }, 1]]);
+    expect(encodeReplay(7, log).runs).toEqual([[{ t: 'wait' }, 2], [{ t: 'attack', dir: 0 }, 1], [{ t: 'wait' }, 1]]);
   });
 
   it('decodes back to the original log and verifies', () => {

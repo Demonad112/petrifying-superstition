@@ -49,7 +49,7 @@ function playBack(seed: number, log: CommandLog, timingSeed: number): { state: S
 
 function sampleLog(n: number, seed: number): CommandLog {
   const rand = timings(seed);
-  return Array.from({ length: n }, (): Command => (rand() < 0.1 ? { t: 'act' } : { t: 'wait' }));
+  return Array.from({ length: n }, (): Command => (rand() < 0.1 ? { t: 'attack', dir: 0 } : { t: 'wait' }));
 }
 
 describe('frame driver (runFrame)', () => {
@@ -86,7 +86,7 @@ describe('frame driver (runFrame)', () => {
       mode: 'realtime',
       paused: false,
       tickHitStop: () => frozen,
-      next: () => ({ t: 'act' }),
+      next: () => ({ t: 'attack', dir: 0 }),
       clearInput: () => {},
       apply: (c) => {
         applied.push(c);
@@ -119,7 +119,7 @@ describe('frame driver (runFrame)', () => {
       mode: 'turn',
       paused: false,
       tickHitStop: () => false,
-      next: () => ({ t: 'act' }),
+      next: () => ({ t: 'attack', dir: 0 }),
       clearInput: () => {},
       apply: () => applied++,
     };

@@ -28,7 +28,7 @@ test('boots without console errors and serves assets with real content-types', a
   await page.locator('canvas').click();
   await expect(page.locator('canvas')).toHaveAttribute('data-scene', 'Play');
   await page.keyboard.press('Space');
-  // Poll instead of sleeping: wait until the act tick has run.
+  // Poll instead of sleeping: wait until ticks are running.
   await expect.poll(async () => Number(await page.locator('canvas').getAttribute('data-tick')), { timeout: 20_000 }).toBeGreaterThan(30);
 
   expect(badAssets, 'asset responses with wrong content-type (SPA fallback?)').toEqual([]);
@@ -62,7 +62,7 @@ test('real-time sim ticks, and F8 exports a replay that re-simulates to the same
     .poll(async () => {
       file = await exportReplay();
       const kinds = new Set(file.runs.map(([cmd]) => cmd.t));
-      return kinds.has('act') && kinds.has('wait');
+      return kinds.has('attack') && kinds.has('wait');
     }, { message: 'replay has the input and idle ticks logged as wait', timeout: 20_000 })
     .toBe(true);
 
@@ -135,15 +135,14 @@ test('F toggles reduced FX, and the setting survives a reload', async ({ page })
   await expect(page.locator('canvas')).toHaveAttribute('data-fx', 'full');
 });
 
-test('act triggers hit-stop (data-hitstop true, then clears) without touching the replay', async ({ page }) => {
+test('a kill triggers hit-stop (data-hitstop true, then clears) without touching the replay', async ({ page }) => {
   test.setTimeout(60_000);
-  await page.goto('./?seed=99');
+  // The demo kills enemies without any input, so the test needs no aiming.
+  await page.goto('./?demo=map-seed5&speed=4');
   const canvas = page.locator('canvas');
-  await canvas.click();
-  await expect(canvas).toHaveAttribute('data-scene', 'Play');
   await expect(canvas).toHaveAttribute('data-hitstop', 'false');
 
-  // A 40 ms hit-stop can be shorter than one slow headless frame, so record every attribute change
+  // A 30 ms hit-stop can be shorter than one slow headless frame, so record every attribute change
   // instead of sampling: the observer sees the 'true' even if the page never renders it to a poll.
   await canvas.evaluate((el) => {
     const w = window as unknown as { __hitstop: string[] };
@@ -153,15 +152,13 @@ test('act triggers hit-stop (data-hitstop true, then clears) without touching th
       attributeFilter: ['data-hitstop'],
     });
   });
-  await page.keyboard.press('Space');
 
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __hitstop: string[] }).__hitstop.join(',')), {
       message: 'data-hitstop goes true, then clears back to false',
-      timeout: 20_000,
+      timeout: 30_000,
     })
-    .toMatch(/^true,false/);
-  await expect(canvas).toHaveAttribute('data-hitstop', 'false');
+    .toMatch(/true,false/);
 
   // Hit-stop is view-only: the exported replay still re-simulates to its own hash and carries no hit-stop data.
   const [download] = await Promise.all([page.waitForEvent('download'), page.keyboard.press('F8')]);
@@ -169,6 +166,5 @@ test('act triggers hit-stop (data-hitstop true, then clears) without touching th
   for await (const chunk of await download.createReadStream()) text += String(chunk);
   const file = JSON.parse(text) as ReplayFile;
   expect(Object.keys(file).sort()).toEqual(['hash', 'runs', 'seed', 'ticks', 'v']);
-  expect(file.runs.some(([cmd]) => cmd.t === 'act')).toBe(true);
   expect(checkReplay(file)).toEqual({ ok: true, hash: file.hash, ticks: file.ticks });
 });
