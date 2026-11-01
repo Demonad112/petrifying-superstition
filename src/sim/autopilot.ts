@@ -55,11 +55,16 @@ export function autopilot(s: SimState, t: Tuning = DEFAULT_TUNING): Command {
   return toward(s, EXIT_X, EXIT_Y);
 }
 
-export function runAutopilot(s0: SimState, maxTicks: number, stepFn: (s: SimState, c: Command) => SimState): { log: Command[]; final: SimState } {
+export function runAutopilot(
+  s0: SimState,
+  maxTicks: number,
+  stepFn: (s: SimState, c: Command) => SimState,
+  t: Tuning = DEFAULT_TUNING,
+): { log: Command[]; final: SimState } {
   const log: Command[] = [];
   let s = s0;
   while (s.status === 'playing' && log.length < maxTicks) {
-    const cmd = autopilot(s);
+    const cmd = autopilot(s, t);
     log.push(cmd);
     s = stepFn(s, cmd);
   }
