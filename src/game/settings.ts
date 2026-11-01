@@ -6,7 +6,7 @@ export interface Settings {
   fx: FxMode;
 }
 
-export const SETTINGS_KEY = 'dg3.settings';
+export const SETTINGS_KEY = 'ps.settings';
 export const DEFAULT_SETTINGS: Settings = { muted: false, fx: 'full' };
 
 // Pure: turns whatever storage returned into valid settings. Each field falls back to its default on its own,

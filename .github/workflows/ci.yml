@@ -35,3 +35,11 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke test (Playwright on dist)
         run: npm run e2e
+      - name: Upload e2e evidence (screenshots, perf, traces)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-evidence-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore

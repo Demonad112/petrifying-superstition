@@ -1,4 +1,4 @@
-# dummy-gamer-3
+# petrifying-superstition
 
 Browser game, 960x540, Phaser 4 + TypeScript strict + Vite. Solo, 30-day jam.
 

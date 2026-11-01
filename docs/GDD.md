@@ -1,8 +1,13 @@
 # Game Design Document
 
-> Theme: _TBD (announced Nov 1)_ · Working title: _TBD_ · Last updated: _YYYY-MM-DD_
+> **Pipeline demo, not the game.** The current build is a throwaway slice that proves every layer of the stack.
+> Theme: _TBD (announced Nov 1, 14:37 MST)_ · Working title: _Petrifying Superstition_ · Last updated: 2026-11-01
 
 ## One-line pitch
+
+_Pre-theme direction (to be fitted to the theme):_ a top-down pixel-art action roguelite. Each run is one map with a tier; clearing it raises the tier.
+There is no shop or skill tree: all upgrades are modifiers rolled by the seeded RNG and dropped by rarer, stronger enemies.
+Dark, late-90s pixel look, built from code-defined sprites in a fixed 16-colour palette.
 
 ## Theme interpretation
 
