@@ -143,6 +143,13 @@ Status is one of `fixed`, `workaround`, `open`, `idea`.
 - Status: workaround.
 - Seen: slice session, final verification.
 
+**K-22 · session stop hook wants commits re-authored and force-pushed**
+- Symptom: a stop hook reports commits as "Unverified" because the committer email isn't the tool's noreply address, and asks to switch identity and `git commit --amend --reset-author` or rebase pushed commits.
+- Cause: the hook assumes the tool's identity and signing, which conflicts with K-05 (commits are authored as the owner) and with the no-force-push rule.
+- Fix: not applied; amending pushed commits needs a force-push. Options for the owner: enable commit signing or vigilant mode for the account, or exempt this repo from the hook.
+- Status: open (owner decision).
+- Seen: slice session, after pushing PR 6.
+
 ## Ideas
 - Slice "new skill" variant: a modifier that adds a dash command. It needs a new `Command` and sim rule, so it's out of scope for the slice.
 - Slice polish left out on purpose: per-line glow on the stat panel (now one Text, the changed stat is bracketed and the whole line is tinted), a menu link to `slice.html`, sound design, a pause overlay, hand-play feel tuning (the `?auto=1` run never takes damage).
